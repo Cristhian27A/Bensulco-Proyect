@@ -1,0 +1,37 @@
+{% extends "facturacion/base.html" %}
+{% block titulo %}Verificación de factura{% endblock %}
+
+{% block contenido %}
+<div class="tarjeta tarjeta-verificacion verificacion-{{ tipo }}">
+    {% if valida %}
+        <div class="icono-verificacion">&#10003;</div>
+        <h1 class="verificacion-titulo">Factura auténtica</h1>
+    {% elif tipo == "anulada" %}
+        <div class="icono-verificacion">!</div>
+        <h1 class="verificacion-titulo">Factura anulada</h1>
+    {% else %}
+        <div class="icono-verificacion">&#10007;</div>
+        <h1 class="verificacion-titulo">No válida</h1>
+    {% endif %}
+
+    <p>{{ mensaje }}</p>
+
+    <p class="pista">
+        Serie: <strong>{{ serie }}</strong><br>
+        Código: <strong>{{ codigo }}</strong>
+    </p>
+
+    {% if valida and factura %}
+        <div class="datos-factura">
+            <div><span>Cliente</span><span>{{ factura.cliente_nombre }}</span></div>
+            <div><span>Fecha</span><span>{{ factura.fecha|date:"d/m/Y" }}</span></div>
+            <div><span>Vence</span><span>{{ factura.fecha_vencimiento|date:"d/m/Y" }}</span></div>
+            <div><span>Total</span><span>{{ factura.total|floatformat:2 }}</span></div>
+            <div><span>Estado</span><span>{{ factura.get_estado_display }}</span></div>
+        </div>
+        <div class="acciones" style="justify-content: center; margin-top: 20px;">
+            <a class="boton boton-plano" href="{% url 'facturacion:detalle' factura.pk %}">Ver la factura</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

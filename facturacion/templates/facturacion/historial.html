@@ -1,0 +1,101 @@
+{% extends "facturacion/base.html" %}
+{% block titulo %}Historial de facturas{% endblock %}
+
+{% block contenido %}
+<h1 class="titulo-pagina">Historial</h1>
+
+<form method="get" class="filtros">
+    <div>
+        <label for="{{ form.q.id_for_label }}">{{ form.q.label }}</label>
+        {{ form.q }}
+    </div>
+    <div>
+        <label for="{{ form.desde.id_for_label }}">{{ form.desde.label }}</label>
+        {{ form.desde }}
+    </div>
+    <div>
+        <label for="{{ form.hasta.id_for_label }}">{{ form.hasta.label }}</label>
+        {{ form.hasta }}
+    </div>
+    <div>
+        <label for="{{ form.estado.id_for_label }}">{{ form.estado.label }}</label>
+        {{ form.estado }}
+    </div>
+    <div class="acciones">
+        <button type="submit" class="boton boton-principal boton-pequeno">Filtrar</button>
+        <a href="{% url 'facturacion:historial' %}" class="boton boton-plano boton-pequeno">Limpiar</a>
+    </div>
+</form>
+
+<div class="resumen-historial">
+    <span>Facturas encontradas: <strong>{{ total_facturas }}</strong></span>
+    <span>Total emitido en el filtro: <strong>B/. {{ suma_total|floatformat:2 }}</strong></span>
+</div>
+
+{% if pagina.object_list %}
+    <table class="tabla-historial">
+        <thead>
+            <tr>
+                <th>Serie</th>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th>Orden de compra</th>
+                <th class="celda-dinero">Total</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for factura in pagina.object_list %}
+            <tr class="{% if factura.anulada %}anulada{% endif %}">
+                <td>
+                    <a class="enlace-serie" href="{% url 'facturacion:detalle' factura.pk %}">{{ factura.numero_serie }}</a>
+                </td>
+                <td>{{ factura.fecha|date:"d/m/Y" }}</td>
+                <td>{{ factura.cliente_nombre }}</td>
+                <td>{{ factura.orden_compra|default:"—" }}</td>
+                <td class="celda-dinero">{{ factura.total|floatformat:2 }}</td>
+                <td>
+                    {% if factura.anulada %}
+                        <span class="etiqueta etiqueta-anulada">Anulada</span>
+                    {% else %}
+                        <span class="etiqueta etiqueta-emitida">Emitida</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="acciones-fila">
+                        <a class="boton boton-plano boton-pequeno" href="{% url 'facturacion:detalle' factura.pk %}">Ver</a>
+                        <a class="boton boton-plano boton-pequeno" href="{% url 'facturacion:pdf' factura.pk %}">PDF</a>
+                        <a class="boton boton-secundario boton-pequeno" href="{% url 'facturacion:duplicar' factura.pk %}">Duplicar</a>
+                        {% if not factura.anulada %}
+                        <form method="post" action="{% url 'facturacion:anular' factura.pk %}"
+                              onsubmit="return confirm('¿Anular la factura {{ factura.numero_serie }}? Esta acción no se puede deshacer.');">
+                            {% csrf_token %}
+                            <button type="submit" class="boton boton-peligro boton-pequeno">Anular</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if pagina.has_other_pages %}
+        <nav class="paginacion">
+            {% if pagina.has_previous %}
+                <a href="?{% if request.GET.q %}q={{ request.GET.q|urlencode }}&amp;{% endif %}{% if request.GET.desde %}desde={{ request.GET.desde }}&amp;{% endif %}{% if request.GET.hasta %}hasta={{ request.GET.hasta }}&amp;{% endif %}{% if request.GET.estado %}estado={{ request.GET.estado }}&amp;{% endif %}pagina={{ pagina.previous_page_number }}">Anterior</a>
+            {% endif %}
+            <span class="actual">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+            {% if pagina.has_next %}
+                <a href="?{% if request.GET.q %}q={{ request.GET.q|urlencode }}&amp;{% endif %}{% if request.GET.desde %}desde={{ request.GET.desde }}&amp;{% endif %}{% if request.GET.hasta %}hasta={{ request.GET.hasta }}&amp;{% endif %}{% if request.GET.estado %}estado={{ request.GET.estado }}&amp;{% endif %}pagina={{ pagina.next_page_number }}">Siguiente</a>
+            {% endif %}
+        </nav>
+    {% endif %}
+{% else %}
+    <div class="vacio">
+        <p>Todavía no hay facturas con esos criteria.</p>
+        <a class="boton boton-principal" href="{% url 'facturacion:nueva' %}">Crear la primera factura</a>
+    </div>
+{% endif %}
+{% endblock %}

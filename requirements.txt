@@ -1,0 +1,20 @@
+# Dependencias de la aplicacion de facturacion.
+# Instalacion:  pip install -r requirements.txt
+
+# Base de datos MySQL 8 (motor InnoDB, utf8mb4).
+mysqlclient==2.3.0
+
+# Framework web.
+Django==5.2.17
+
+# Variables de configuracion en archivos .env.
+python-decouple==3.8
+
+# Generacion del PDF de la factura.
+reportlab==5.0.1
+pillow==12.3.0
+qrcode==8.2
+
+# Pruebas.
+pytest==9.1.1
+pytest-django==4.14.0

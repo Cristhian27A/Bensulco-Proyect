@@ -1,0 +1,37 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es-PA">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block titulo %}Facturación{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'facturacion/css/estilos.css' %}">
+</head>
+<body>
+    <header class="barra-superior">
+        <div class="contenedor barra-contenido">
+            <a class="marca" href="{% url 'facturacion:nueva' %}">
+                <span class="marca-texto">{{ configuracion.empresa_nombre|default:"Mi Empresa" }}</span>
+            </a>
+            <nav class="menu">
+                <a href="{% url 'facturacion:nueva' %}" class="menu-enlace {% if request.resolver_match.url_name == 'nueva' %}activo{% endif %}">Nueva factura</a>
+                <a href="{% url 'facturacion:historial' %}" class="menu-enlace {% if request.resolver_match.url_name == 'historial' %}activo{% endif %}">Historial</a>
+                <a href="{% url 'facturacion:configuracion' %}" class="menu-enlace {% if request.resolver_match.url_name == 'configuracion' %}activo{% endif %}">Configuración</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="contenedor">
+        {% if messages %}
+            <div class="mensajes">
+                {% for mensaje in messages %}
+                    <div class="mensaje mensaje-{{ mensaje.tags }}">{{ mensaje }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block contenido %}{% endblock %}
+    </main>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

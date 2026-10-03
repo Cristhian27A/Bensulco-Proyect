@@ -1,0 +1,223 @@
+{% extends "facturacion/base.html" %}
+{% load static %}
+{% block titulo %}Nueva factura{% endblock %}
+
+{% block contenido %}
+<h1 class="titulo-pagina">Nueva factura</h1>
+
+{% if duplicada_de %}
+    <p class="aviso">
+        Duplicando la factura <strong>{{ duplicada_de.numero_serie }}</strong>.
+        Revisa los datos y genera la nueva factura; la anterior no se modifica.
+    </p>
+{% endif %}
+
+<form method="post" id="form-factura" novalidate>
+    {% csrf_token %}
+    {{ formset.management_form }}
+
+    <section class="tarjeta">
+        <h2 class="tarjeta-titulo">Datos del cliente</h2>
+        <div class="rejilla">
+            <div class="rejilla-columna-ancha">
+                <label for="{{ form.cliente_nombre.id_for_label }}">{{ form.cliente_nombre.label }}</label>
+                {{ form.cliente_nombre }}
+                {{ form.cliente_nombre.errors }}
+            </div>
+            <div>
+                <label for="{{ form.cliente_ruc.id_for_label }}">{{ form.cliente_ruc.label }}</label>
+                {{ form.cliente_ruc }}
+                {{ form.cliente_ruc.errors }}
+            </div>
+            <div>
+                <label for="{{ form.cliente_telefono.id_for_label }}">{{ form.cliente_telefono.label }}</label>
+                {{ form.cliente_telefono }}
+                {{ form.cliente_telefono.errors }}
+            </div>
+        </div>
+        <div class="rejilla">
+            <div class="rejilla-columna-ancha">
+                <label for="{{ form.cliente_direccion.id_for_label }}">{{ form.cliente_direccion.label }}</label>
+                {{ form.cliente_direccion }}
+                {{ form.cliente_direccion.errors }}
+            </div>
+            <div>
+                <label for="{{ form.cliente_correo.id_for_label }}">{{ form.cliente_correo.label }}</label>
+                {{ form.cliente_correo }}
+                {{ form.cliente_correo.errors }}
+            </div>
+            <div>
+                <label for="{{ form.sucursal.id_for_label }}">{{ form.sucursal.label }}</label>
+                {{ form.sucursal }}
+                {{ form.sucursal.errors }}
+            </div>
+        </div>
+    </section>
+
+    <section class="tarjeta">
+        <h2 class="tarjeta-titulo">Datos de la factura</h2>
+        <div class="rejilla">
+            <div>
+                <label for="{{ form.fecha.id_for_label }}">{{ form.fecha.label }}</label>
+                {{ form.fecha }}
+                {{ form.fecha.errors }}
+            </div>
+            <div>
+                <label for="{{ form.condicion_pago.id_for_label }}">{{ form.condicion_pago.label }}</label>
+                {{ form.condicion_pago }}
+                {{ form.condicion_pago.errors }}
+            </div>
+            <div>
+                <label for="{{ form.vendedor.id_for_label }}">{{ form.vendedor.label }}</label>
+                {{ form.vendedor }}
+                {{ form.vendedor.errors }}
+            </div>
+            <div>
+                <label for="{{ form.orden_compra.id_for_label }}">{{ form.orden_compra.label }}</label>
+                {{ form.orden_compra }}
+                {{ form.orden_compra.errors }}
+                <p class="pista">Si la dejas vacía, se asigna una automática (OC-AAAA-0001) al guardar.</p>
+            </div>
+        </div>
+        <div class="fila-casillas">
+            <label class="casilla">
+                {{ form.aplicar_itbms }}
+                <span>{{ form.aplicar_itbms.label }}</span>
+            </label>
+            <label class="casilla">
+                {{ form.mostrar_ruc }}
+                <span>{{ form.mostrar_ruc.label }}</span>
+            </label>
+        </div>
+    </section>
+
+    <section class="tarjeta">
+        <div class="tarjeta-encabezado">
+            <h2 class="tarjeta-titulo">Productos</h2>
+            <button type="button" class="boton boton-secundario" id="agregar-fila">Agregar producto</button>
+        </div>
+
+        <div class="tabla-envoltura">
+            <table class="tabla-productos">
+                <thead>
+                    <tr>
+                        <th class="col-numero">N.º</th>
+                        <th class="col-producto">Producto</th>
+                        <th class="col-cantidad">Cantidad</th>
+                        <th class="col-precio">Precio caja</th>
+                        <th class="col-monto">Monto</th>
+                        <th class="col-gravada" title="Aplicar ITBMS 7%">7%</th>
+                        <th class="col-quitar"></th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpo-productos">
+                    {% for form_linea in formset %}
+                    <tr class="fila-producto">
+                        <td class="col-numero">{{ forloop.counter }}</td>
+                        <td class="col-producto">
+                            <input type="text" name="{{ form_linea.prefix }}-descripcion" value="{{ form_linea.descripcion.value|default_if_none:'' }}" class="campo campo-producto" placeholder="Descripción del producto">
+                            <div class="sub-campos">
+                                <input type="text" name="{{ form_linea.prefix }}-codigo_barras" value="{{ form_linea.codigo_barras.value|default_if_none:'' }}" class="campo campo-pequeno" placeholder="Código de barras">
+                                <input type="text" name="{{ form_linea.prefix }}-categoria" value="{{ form_linea.categoria.value|default_if_none:'' }}" class="campo campo-pequeno" placeholder="Categoría">
+                            </div>
+                            <div class="sub-caja">
+                                <span class="sub-caja-etiqueta">
+                                    Caja de
+                                    <input type="number" min="1" step="1" name="{{ form_linea.prefix }}-unidades_por_caja" value="{{ form_linea.unidades_por_caja.value|default_if_none:1 }}" class="campo campo-cajaund js-upxc">
+                                    und
+                                </span>
+                                <span class="sub-caja-etiqueta">
+                                    Cobrar por
+                                    <select name="{{ form_linea.prefix }}-cobrar_por" class="js-cobrar-por">
+                                        {% for valor, texto in form_linea.fields.cobrar_por.choices %}
+                                        <option value="{{ valor }}" {% if form_linea.cobrar_por.value == valor %}selected{% endif %}>{{ texto }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </span>
+                                <span class="sub-caja-precio js-precio-para-mostrar"></span>
+                            </div>
+                        </td>
+                        <td class="col-cantidad"><input type="number" step="0.01" min="0" name="{{ form_linea.prefix }}-cantidad" value="{{ form_linea.cantidad.value|default_if_none:'' }}" class="campo campo-numero js-cantidad"></td>
+                        <td class="col-precio"><input type="number" step="0.01" min="0" name="{{ form_linea.prefix }}-precio_unitario" value="{{ form_linea.precio_unitario.value|default_if_none:'' }}" class="campo campo-numero js-precio"></td>
+                        <td class="col-monto"><span class="monto-fila js-monto">0.00</span><br><span class="precio-efectivo js-precio-efectivo"></span></td>
+                        <td class="col-gravada"><input type="checkbox" name="{{ form_linea.prefix }}-gravada" class="js-gravada" {% if form_linea.gravada.value %}checked{% endif %}></td>
+                        <td class="col-quitar"><button type="button" class="boton-quitar js-quitar" title="Quitar esta fila">&times;</button></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="pista" id="aviso-sin-filas">Agrega al menos un producto.</p>
+    </section>
+
+    <section class="tarjeta">
+        <h2 class="tarjeta-titulo">Notas</h2>
+        <div class="rejilla">
+            <div class="rejilla-columna-ancha">
+                <label for="{{ form.notas.id_for_label }}">{{ form.notas.label }}</label>
+                {{ form.notas }}
+                {{ form.notas.errors }}
+                <p class="pista">Opcional. Si lo dejas vacío, el PDF no imprime el bloque de notas.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="tarjeta tarjeta-totales">
+        <div class="fila-casillas">
+            <label class="casilla">
+                <input type="checkbox" id="js-ver-totales" checked>
+                <span>Ver totales</span>
+            </label>
+        </div>
+        <div class="cuadro-totales" id="cuadro-totales">
+            <div class="total-fila"><span>Subtotal</span><span id="t-subtotal">0.00</span></div>
+            <div class="total-fila"><span>ITBMS 7%</span><span id="t-itbms">0.00</span></div>
+            <div class="total-fila total-fila-gran"><span>Gran total</span><span id="t-total">0.00</span></div>
+        </div>
+        <p class="pista">Los totales definitivos se calculan al generar la factura.</p>
+    </section>
+
+    <div class="acciones">
+        <button type="submit" class="boton boton-principal">Generar factura</button>
+        <a href="{% url 'facturacion:historial' %}" class="boton boton-plano">Ver historial</a>
+    </div>
+</form>
+
+<template id="plantilla-fila">
+    <tr class="fila-producto">
+        <td class="col-numero"></td>
+        <td class="col-producto">
+            <input type="text" name="__PREFIX__-descripcion" class="campo campo-producto" placeholder="Descripción del producto">
+            <div class="sub-campos">
+                <input type="text" name="__PREFIX__-codigo_barras" class="campo campo-pequeno" placeholder="Código de barras">
+                <input type="text" name="__PREFIX__-categoria" class="campo campo-pequeno" placeholder="Categoría">
+            </div>
+            <div class="sub-caja">
+                <span class="sub-caja-etiqueta">
+                    Caja de
+                    <input type="number" min="1" step="1" name="__PREFIX__-unidades_por_caja" value="1" class="campo campo-cajaund js-upxc">
+                    und
+                </span>
+                <span class="sub-caja-etiqueta">
+                    Cobrar por
+                    <select name="__PREFIX__-cobrar_por" class="js-cobrar-por">
+                        {% for valor, texto in form_linea.fields.cobrar_por.choices %}
+                        <option value="{{ valor }}" {% if forloop.counter == 1 %}selected{% endif %}>{{ texto }}</option>
+                        {% endfor %}
+                    </select>
+                </span>
+                <span class="sub-caja-precio js-precio-para-mostrar"></span>
+            </div>
+        </td>
+        <td class="col-cantidad"><input type="number" step="0.01" min="0" name="__PREFIX__-cantidad" class="campo campo-numero js-cantidad"></td>
+        <td class="col-precio"><input type="number" step="0.01" min="0" name="__PREFIX__-precio_unitario" class="campo campo-numero js-precio"></td>
+        <td class="col-monto"><span class="monto-fila js-monto">0.00</span><br><span class="precio-efectivo js-precio-efectivo"></span></td>
+        <td class="col-gravada"><input type="checkbox" name="__PREFIX__-gravada" class="js-gravada" checked></td>
+        <td class="col-quitar"><button type="button" class="boton-quitar js-quitar" title="Quitar esta fila">&times;</button></td>
+    </tr>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'facturacion/js/formulario.js' %}"></script>
+{% endblock %}

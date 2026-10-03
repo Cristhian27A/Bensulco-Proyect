@@ -1,0 +1,123 @@
+{% extends "facturacion/base.html" %}
+{% block titulo %}Factura {{ factura.numero_serie }}{% endblock %}
+
+{% block contenido %}
+<h1 class="titulo-pagina">{{ factura.numero_serie }}</h1>
+
+{% if factura.anulada %}
+    <div class="banda-anulada">
+        Esta factura fue anulada{% if factura.fecha_anulacion %} el {{ factura.fecha_anulacion|date:"d/m/Y" }}{% endif %}.
+    </div>
+{% endif %}
+
+<div class="detalle-acciones">
+    <a class="boton boton-principal" href="{% url 'facturacion:pdf' factura.pk %}">Descargar PDF</a>
+    <a class="boton boton-plano" href="{% url 'facturacion:pdf' factura.pk %}?ver=1" target="_blank" rel="noopener">Abrir PDF en el navegador</a>
+    <a class="boton boton-secundario" href="{% url 'facturacion:duplicar' factura.pk %}">Duplicar</a>
+    <a class="boton boton-plano" href="{% url 'facturacion:verificar' factura.numero_serie factura.codigo_verificacion %}">Verificar autenticidad</a>
+    <a class="boton boton-plano" href="{% url 'facturacion:historial' %}">Volver al historial</a>
+</div>
+
+<section class="tarjeta">
+    <h2 class="tarjeta-titulo">Datos de la factura</h2>
+    <div class="rejilla">
+        <div>
+            <label>Fecha</label>
+            <p class="pista">{{ factura.fecha|date:"d/m/Y" }}</p>
+        </div>
+        <div>
+            <label>Vence</label>
+            <p class="pista">{{ factura.fecha_vencimiento|date:"d/m/Y" }}</p>
+        </div>
+        <div>
+            <label>Condición de pago</label>
+            <p class="pista">{{ factura.texto_condicion_pago }}</p>
+        </div>
+        <div>
+            <label>Realizado por</label>
+            <p class="pista">{{ factura.vendedor|default:"—" }}</p>
+        </div>
+        <div>
+            <label>Orden de compra</label>
+            <p class="pista">{{ factura.orden_compra|default:"—" }}</p>
+        </div>
+        <div>
+            <label>Código de verificación</label>
+            <p class="pista">{{ factura.codigo_verificacion }}</p>
+        </div>
+    </div>
+</section>
+
+<section class="tarjeta">
+    <h2 class="tarjeta-titulo">Cliente</h2>
+    <p class="pista">
+        <strong>{{ factura.cliente_nombre }}</strong><br>
+        {% if factura.mostrar_ruc and factura.cliente_ruc %}{{ factura.cliente_ruc }}<br>{% endif %}
+        {{ factura.cliente_direccion|default:"Sin dirección" }}<br>
+        {% if factura.sucursal %}Comprar desde: {{ factura.sucursal }}<br>{% endif %}
+        {% if factura.cliente_telefono %}{{ factura.cliente_telefono }} · {% endif %}
+        {{ factura.cliente_correo|default:"" }}
+    </p>
+</section>
+
+<section class="tarjeta">
+    <h2 class="tarjeta-titulo">Productos</h2>
+    <div class="tabla-envoltura">
+        <table class="tabla-historial">
+            <thead>
+                <tr>
+                    <th>N.º</th>
+                    <th>Producto</th>
+                    <th class="celda-dinero">Cantidad</th>
+                    <th class="celda-dinero">Precio efectivo</th>
+                    <th class="celda-dinero">Monto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for linea in lineas %}
+                <tr>
+                    <td>{{ linea.orden }}</td>
+                    <td>
+                        <strong>{{ linea.descripcion }}</strong>
+                        <br>
+                        <span class="pista">
+                            {% if linea.codigo_barras %}Código: {{ linea.codigo_barras }}{% endif %}
+                            {% if linea.categoria %} · {{ linea.categoria }}{% endif %}
+                            {% if linea.unidades_por_caja > 1 %} · Caja de {{ linea.unidades_por_caja }} und{% endif %}
+                            · {% if linea.gravada %}Gravada{% else %}Exenta{% endif %}
+                        </span>
+                    </td>
+                    <td class="celda-dinero">{{ linea.cantidad_texto }}</td>
+                    <td class="celda-dinero">{{ linea.precio_efectivo_texto }}</td>
+                    <td class="celda-dinero">{{ linea.monto|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="tarjeta">
+    <h2 class="tarjeta-titulo">Totales</h2>
+    <div class="cuadro-totales" style="max-width: 420px; margin-left: auto;">
+        <div class="total-fila"><span>Subtotal</span><span>{{ factura.subtotal|floatformat:2 }}</span></div>
+        <div class="total-fila"><span>ITBMS 7%</span><span>{{ factura.itbms|floatformat:2 }}</span></div>
+        <div class="total-fila total-fila-gran"><span>Gran total</span><span>{{ factura.total|floatformat:2 }}</span></div>
+    </div>
+    <p class="pista" style="text-align: right; margin-top: 14px; font-size: 13px; letter-spacing: .3px;">
+        {{ total_letras }}
+    </p>
+</section>
+
+{% if factura.notas %}
+<section class="tarjeta">
+    <h2 class="tarjeta-titulo">Notas</h2>
+    <p class="pista" style="white-space: pre-line;">{{ factura.notas }}</p>
+</section>
+{% endif %}
+
+<section class="tarjeta">
+    <h2 class="tarjeta-titulo">Vista previa del PDF</h2>
+    <iframe class="marco-pdf" src="{% url 'facturacion:pdf' factura.pk %}?ver=1" title="PDF de la factura {{ factura.numero_serie }}"></iframe>
+</section>
+{% endblock %}

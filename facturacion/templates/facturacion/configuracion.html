@@ -1,0 +1,109 @@
+{% extends "facturacion/base.html" %}
+{% block titulo %}Configuración del negocio{% endblock %}
+
+{% block contenido %}
+<h1 class="titulo-pagina">Configuración del negocio</h1>
+
+<p class="aviso">
+    Estos datos alimentan el encabezado y el pie de todas las facturas en PDF.
+    Los valores actuales son de ejemplo: reemplázalos por los de tu negocio.
+</p>
+
+<form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+
+    <section class="tarjeta">
+        <h2 class="tarjeta-titulo">Identidad del negocio</h2>
+        <div class="rejilla">
+            <div class="rejilla-columna-ancha">
+                <label for="{{ form.empresa_nombre.id_for_label }}">{{ form.empresa_nombre.label }}</label>
+                {{ form.empresa_nombre }}
+                {{ form.empresa_nombre.errors }}
+            </div>
+            <div>
+                <label for="{{ form.empresa_ruc.id_for_label }}">{{ form.empresa_ruc.label }}</label>
+                {{ form.empresa_ruc }}
+                {{ form.empresa_ruc.errors }}
+                <label class="casilla" style="margin-top: 12px;">
+                    {{ form.mostrar_ruc }}
+                    <span>{{ form.mostrar_ruc.label }}</span>
+                </label>
+            </div>
+        </div>
+        <div class="rejilla">
+            <div class="rejilla-columna-ancha">
+                <label for="{{ form.empresa_direccion.id_for_label }}">{{ form.empresa_direccion.label }}</label>
+                {{ form.empresa_direccion }}
+                {{ form.empresa_direccion.errors }}
+            </div>
+            <div>
+                <label for="{{ form.empresa_correo.id_for_label }}">{{ form.empresa_correo.label }}</label>
+                {{ form.empresa_correo }}
+                {{ form.empresa_correo.errors }}
+            </div>
+            <div>
+                <label for="{{ form.empresa_telefono.id_for_label }}">{{ form.empresa_telefono.label }}</label>
+                {{ form.empresa_telefono }}
+                {{ form.empresa_telefono.errors }}
+            </div>
+        </div>
+        <div class="rejilla">
+            <div>
+                <label for="{{ form.logo.id_for_label }}">{{ form.logo.label }}</label>
+                {% if configuracion.logo %}
+                    <img class="vista-logo" src="{{ configuracion.logo.url }}" alt="Logo actual">
+                {% endif %}
+                {{ form.logo }}
+                {{ form.logo.errors }}
+                <p class="pista">Logo cuadrado, se ve mejor a 512 x 512 píxeles.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="tarjeta">
+        <h2 class="tarjeta-titulo">Textos de la factura</h2>
+        <div class="rejilla">
+            <div class="rejilla-columna-ancha">
+                <label for="{{ form.notas_predeterminadas.id_for_label }}">{{ form.notas_predeterminadas.label }}</label>
+                {{ form.notas_predeterminadas }}
+                {{ form.notas_predeterminadas.errors }}
+                <p class="pista">Se precarga en cada factura nueva. Se puede editar o borrar en la factura.</p>
+            </div>
+            <div>
+                <label for="{{ form.datos_bancarios.id_for_label }}">{{ form.datos_bancarios.label }}</label>
+                {{ form.datos_bancarios }}
+                {{ form.datos_bancarios.errors }}
+            </div>
+        </div>
+    </section>
+
+    <section class="tarjeta">
+        <h2 class="tarjeta-titulo">Colores del PDF</h2>
+        <div class="rejilla">
+            <div>
+                <label for="{{ form.color_barra_factura.id_for_label }}">{{ form.color_barra_factura.label }}</label>
+                {{ form.color_barra_factura }}
+                {{ form.color_barra_factura.errors }}
+                <p class="pista">La franja con el título ORDEN DE COMPRA. El texto va en blanco o negro, según se lea mejor.</p>
+            </div>
+            <div>
+                <label for="{{ form.color_tabla.id_for_label }}">{{ form.color_tabla.label }}</label>
+                {{ form.color_tabla }}
+                {{ form.color_tabla.errors }}
+                <p class="pista">El encabezado de la tabla de productos, el bloque de notas y la banda del gran total.</p>
+            </div>
+            <div>
+                <label for="{{ form.color_principal.id_for_label }}">{{ form.color_principal.label }}</label>
+                {{ form.color_principal }}
+                {{ form.color_principal.errors }}
+                <p class="pista">El número de serie y los detalles que se resaltan en el PDF.</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="acciones">
+        <button type="submit" class="boton boton-principal">Guardar configuración</button>
+        <a href="{% url 'facturacion:nueva' %}" class="boton boton-plano">Volver</a>
+    </div>
+</form>
+{% endblock %}
