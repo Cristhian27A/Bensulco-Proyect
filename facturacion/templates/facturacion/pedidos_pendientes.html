@@ -1,0 +1,285 @@
+{% extends "facturacion/base.html" %}
+
+{% block titulo %}Pedidos Pendientes{% endblock %}
+
+{% block contenido %}
+<div class="pedidos-header">
+    <h1>Pedidos Pendientes</h1>
+    <p class="subtitulo">Convierta pedidos B2B en facturas</p>
+</div>
+
+<div class="filtros-pedidos">
+    <form method="get" class="filtro-form">
+        <label for="estado">Estado:</label>
+        <select name="estado" id="estado">
+            <option value="">Todos</option>
+            <option value="pendiente" {% if estado_filtro == 'pendiente' %}selected{% endif %}>Pendientes</option>
+            <option value="procesando" {% if estado_filtro == 'procesando' %}selected{% endif %}>Procesando</option>
+            <option value="facturado" {% if estado_filtro == 'facturado' %}selected{% endif %}>Facturados</option>
+            <option value="cancelado" {% if estado_filtro == 'cancelado' %}selected{% endif %}>Cancelados</option>
+        </select>
+        <button type="submit" class="campo">Filtrar</button>
+        <a href="{% url 'facturacion:pedidos_pendientes' %}" class="campo">Limpiar</a>
+    </form>
+</div>
+
+{% if pagina %}
+<div class="info-pedidos">
+    <p>Total de pedidos: <strong>{{ total_pedidos }}</strong></p>
+</div>
+
+<div class="tabla-pedidos">
+    <table>
+        <thead>
+            <tr>
+                <th>Número</th>
+                <th>Cliente</th>
+                <th>RUC</th>
+                <th>Fecha</th>
+                <th>Estado</th>
+                <th>Total</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pedido in pagina %}
+            <tr>
+                <td><strong>PED-{{ pedido.pk|stringformat:"04d" }}</strong></td>
+                <td>{{ pedido.cliente.nombre_empresa }}</td>
+                <td>{{ pedido.cliente.ruc }}</td>
+                <td>{{ pedido.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                <td>
+                    <span class="estado-badge estado-{{ pedido.estado }}">
+                        {{ pedido.get_estado_display }}
+                    </span>
+                </td>
+                <td><strong>${{ pedido.total_estimado|floatformat:2 }}</strong></td>
+                <td>
+                    <a href="{% url 'facturacion:detalle_pedido' pedido.pk %}" class="btn-small btn-ver">
+                        Ver
+                    </a>
+                    {% if pedido.puede_facturarse and not pedido.factura_generada %}
+                    <form method="post" action="{% url 'facturacion:convertir_pedido' pedido.pk %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-small btn-convertir">
+                            Convertir
+                        </button>
+                    </form>
+                    {% elif pedido.factura_generada %}
+                    <a href="{% url 'facturacion:detalle' pedido.factura_generada.pk %}" class="btn-small btn-factura">
+                        Ver Factura
+                    </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="paginacion">
+    {% if pagina.has_previous %}
+    <a href="?pagina={{ pagina.previous_page_number }}{% if estado_filtro %}&estado={{ estado_filtro }}{% endif %}">← Anterior</a>
+    {% endif %}
+
+    <span>Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+
+    {% if pagina.has_next %}
+    <a href="?pagina={{ pagina.next_page_number }}{% if estado_filtro %}&estado={{ estado_filtro }}{% endif %}">Siguiente →</a>
+    {% endif %}
+</div>
+{% else %}
+<div class="sin-pedidos">
+    <p>No hay pedidos para mostrar.</p>
+</div>
+{% endif %}
+
+<style>
+    .pedidos-header {
+        margin-bottom: 20px;
+    }
+
+    .pedidos-header h1 {
+        margin: 0 0 5px 0;
+        color: #3A0088;
+    }
+
+    .subtitulo {
+        margin: 0;
+        color: #666;
+        font-size: 14px;
+    }
+
+    .filtros-pedidos {
+        background: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .filtro-form {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .filtro-form label {
+        font-weight: 500;
+        color: #333;
+    }
+
+    .filtro-form select {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .info-pedidos {
+        background: #f8f9fa;
+        padding: 10px 20px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+
+    .info-pedidos p {
+        margin: 0;
+        font-size: 14px;
+    }
+
+    .tabla-pedidos {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .tabla-pedidos table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .tabla-pedidos th,
+    .tabla-pedidos td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .tabla-pedidos th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .tabla-pedidos tr:hover {
+        background: #f8f9fa;
+    }
+
+    .estado-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .estado-pendiente {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .estado-procesando {
+        background: #cce5ff;
+        color: #004085;
+    }
+
+    .estado-facturado {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .estado-cancelado {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .btn-small {
+        display: inline-block;
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 500;
+        margin-right: 5px;
+    }
+
+    .btn-ver {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-convertir {
+        background: #28a745;
+        color: white;
+    }
+
+    .btn-convertir:hover {
+        background: #218838;
+    }
+
+    .btn-factura {
+        background: #3A0088;
+        color: white;
+    }
+
+    .paginacion {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        padding: 20px;
+    }
+
+    .paginacion a {
+        color: #3A0088;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .paginacion a:hover {
+        text-decoration: underline;
+    }
+
+    .sin-pedidos {
+        text-align: center;
+        padding: 40px;
+        background: white;
+        border-radius: 8px;
+        color: #666;
+    }
+
+    @media (max-width: 768px) {
+        .tabla-pedidos {
+            overflow-x: auto;
+        }
+
+        .tabla-pedidos table {
+            min-width: 800px;
+        }
+
+        .filtro-form {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .filtro-form select {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,259 @@
+{% extends "catalogo/base.html" %}
+
+{% block titulo %}Pedido Enviado{% endblock %}
+{% block header_title %}Pedido Enviado Exitosamente{% endblock %}
+
+{% block contenido %}
+<div class="pedido-exitoso">
+    <div class="icono-exito">
+        ✓
+    </div>
+
+    <h1>¡Pedido Enviado Exitosamente!</h1>
+
+    <div class="pedido-info">
+        <p class="numero-pedido">
+            Número de pedido: <strong>PED-{{ pedido.pk|stringformat:"04d" }}</strong>
+        </p>
+
+        <p class="fecha-pedido">
+            Fecha: {{ pedido.fecha_creacion|date:"d/m/Y H:i" }}
+        </p>
+
+        <p class="estado-pedido">
+            Estado: <span class="estado-badge estado-{{ pedido.estado }}">{{ pedido.get_estado_display }}</span>
+        </p>
+    </div>
+
+    <div class="pedido-detalle">
+        <h2>Detalle del Pedido</h2>
+
+        <div class="cliente-info">
+            <strong>Cliente:</strong> {{ pedido.cliente.nombre_empresa }}<br>
+            <strong>RUC:</strong> {{ pedido.cliente.ruc }}<br>
+            {% if pedido.cliente.email_contacto %}
+            <strong>Email:</strong> {{ pedido.cliente.email_contacto }}<br>
+            {% endif %}
+            {% if pedido.cliente.telefono %}
+            <strong>Teléfono:</strong> {{ pedido.cliente.telefono }}<br>
+            {% endif %}
+        </div>
+
+        <table class="tabla-pedido">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cajas</th>
+                    <th>Unidades</th>
+                    <th>Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for linea in lineas %}
+                <tr>
+                    <td>
+                        <strong>{{ linea.producto.nombre }}</strong><br>
+                        <small>{{ linea.producto.sku }}</small>
+                    </td>
+                    <td>{{ linea.cantidad_cajas }}</td>
+                    <td>{{ linea.cantidad_unidades }}</td>
+                    <td>${{ linea.subtotal|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3"><strong>Total:</strong></td>
+                    <td><strong>${{ pedido.total_estimado|floatformat:2 }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        {% if pedido.notas %}
+        <div class="notas-pedido">
+            <strong>Notas:</strong><br>
+            {{ pedido.notas|linebreaks }}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="acciones">
+        <a href="{% url 'catalogo:pdf_pedido' pedido.pk %}" class="btn btn-primary">
+            📄 Descargar PDF
+        </a>
+        <a href="{% url 'catalogo:catalogo' %}" class="btn btn-success">
+            🛒 Nuevo Pedido
+        </a>
+    </div>
+</div>
+
+<style>
+    .pedido-exitoso {
+        max-width: 800px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    .icono-exito {
+        width: 80px;
+        height: 80px;
+        background: #28a745;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 48px;
+        margin: 0 auto 20px;
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+
+    .pedido-exitoso h1 {
+        color: #28a745;
+        margin-bottom: 30px;
+    }
+
+    .pedido-info {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .numero-pedido {
+        font-size: 20px;
+        margin: 10px 0;
+    }
+
+    .numero-pedido strong {
+        color: #3A0088;
+        font-size: 24px;
+    }
+
+    .estado-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .estado-pendiente {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .estado-procesando {
+        background: #cce5ff;
+        color: #004085;
+    }
+
+    .estado-facturado {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .estado-cancelado {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .pedido-detalle {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        text-align: left;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .pedido-detalle h2 {
+        margin-top: 0;
+        color: #333;
+        border-bottom: 2px solid #3A0088;
+        padding-bottom: 10px;
+    }
+
+    .cliente-info {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+
+    .tabla-pedido {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+
+    .tabla-pedido th,
+    .tabla-pedido td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .tabla-pedido th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .tabla-pedido tfoot tr {
+        background: #e9ecef;
+        font-weight: 600;
+    }
+
+    .notas-pedido {
+        background: #fff3cd;
+        padding: 15px;
+        border-radius: 4px;
+        border-left: 4px solid #ffc107;
+    }
+
+    .acciones {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+    }
+
+    @media (max-width: 768px) {
+        .icono-exito {
+            width: 60px;
+            height: 60px;
+            font-size: 36px;
+        }
+
+        .pedido-exitoso h1 {
+            font-size: 24px;
+        }
+
+        .numero-pedido {
+            font-size: 16px;
+        }
+
+        .numero-pedido strong {
+            font-size: 20px;
+        }
+
+        .tabla-pedido {
+            font-size: 12px;
+        }
+
+        .tabla-pedido th,
+        .tabla-pedido td {
+            padding: 8px 4px;
+        }
+
+        .acciones {
+            flex-direction: column;
+        }
+
+        .acciones .btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}

@@ -52,11 +52,15 @@
         return valor.toFixed(2);
     }
 
-    // Precio por el que se multiplica la cantidad: la caja entera o la
-    // unidad suelta (precio de la caja / unidades que trae). Sin redondear.
-    function precioEfectivo(precio, unidades, modo) {
-        if (modo === POR_CAJA || unidades <= 1) { return precio; }
-        return precio / unidades;
+    // Precio por el que se multiplica la cantidad:
+    // - "caja": usa precio_caja completo
+    // - "unidad": usa precio_unitario directamente (para tiendas pequeñas)
+    // Sin redondear.
+    function precioEfectivo(precio, unidades, modo, precioUnidad) {
+        if (modo === POR_CAJA) { return precio; }
+        // Para unidad: usa precio_unidad si existe, si no usa precio_caja
+        if (precioUnidad && precioUnidad > 0) { return precioUnidad; }
+        return precio;  // precio_caja es en realidad el precio por unidad en este caso
     }
 
     // Convierte el precio efectivo a un texto corto, igual que la función
@@ -75,17 +79,19 @@
     }
 
     // Monto de la línea, en centavos, redondeado una sola vez al final.
-    // En caja:  round(cantidad x precio).  En unidad: round(cantidad x
-    // precio_caja / unidades) -> el precio unitario puede ser inexacto y
-    // redondea igual que el servidor (0.005 hacia arriba).
-    function montoLinea(cantidad, precioCaja, unidades, modo) {
+    // En caja:  round(cantidad x precio_caja)
+    // En unidad: round(cantidad x precio_unitario)
+    // Redondea igual que el servidor (0.005 hacia arriba).
+    function montoLinea(cantidad, precioCaja, unidades, modo, precioUnidad) {
         var cant = centavos(cantidad);
         var prec = centavos(precioCaja);
         if (cant <= 0 || prec < 0) { return 0; }
         if (modo === POR_CAJA) {
             return Math.round((cant * prec) / 100);
         }
-        return Math.round((cant * prec) / (100 * unidadesDeCaja(unidades)));
+        // Para unidad: usa precio_unitario si existe, si no usa precio_caja
+        var precioUsar = (precioUnidad && precioUnidad > 0) ? centavos(precioUnidad) : prec;
+        return Math.round((cant * precioUsar) / 100);
     }
 
     function calcular() {
@@ -98,6 +104,7 @@
         Array.prototype.forEach.call(filas, function (fila) {
             var cantidad = fila.querySelector(".js-cantidad");
             var precio = fila.querySelector(".js-precio");
+            var precioUnidad = fila.querySelector(".js-precio-unidad");
             var unidades = fila.querySelector(".js-upxc");
             var modo = fila.querySelector(".js-cobrar-por");
             var gravada = fila.querySelector(".js-gravada");
@@ -107,13 +114,15 @@
 
             var cantValor = cantidad ? cantidad.value : "";
             var precValor = precio ? precio.value : "";
+            var precUnidadValor = precioUnidad ? precioUnidad.value : "";
             var unidadesValor = unidades ? unidades.value : "1";
             var modoValor = modo ? modo.value : "";
             var unidadesN = unidadesDeCaja(unidadesValor);
 
-            var monto = montoLinea(cantValor, precValor, unidadesValor, modoValor);
+            var monto = montoLinea(cantValor, precValor, unidadesValor, modoValor, precUnidadValor);
             var precioCaja = centavos(precValor) / 100;
-            var precioEf = precioEfectivo(precioCaja, unidadesN, modoValor);
+            var precioUnid = centavos(precUnidadValor) / 100;
+            var precioEf = precioEfectivo(precioCaja, unidadesN, modoValor, precioUnid);
             var sufijo = modoValor === POR_CAJA ? " / caja" : " / und";
 
             if (casillaMonto) {
@@ -123,21 +132,26 @@
             // Precio de la unidad suelta (o de la caja) que muestra la fila.
             if (casillaPrecioEfectivo) {
                 casillaPrecioEfectivo.textContent =
-                    (precioCaja > 0 ? textoPrecio(precioEf) + sufijo : "0.00 / und");
+                    (precioCaja > 0 || precioUnid > 0 ? textoPrecio(precioEf) + sufijo : "0.00 / und");
             }
             if (casillaPrecioParaMostrar) {
                 casillaPrecioParaMostrar.textContent =
-                    precioCaja > 0 ? "Precio: " + textoPrecio(precioEf) + sufijo : "";
+                    (precioCaja > 0 || precioUnid > 0 ? "Precio: " + textoPrecio(precioEf) + sufijo : "");
             }
 
-            if (centavos(cantValor) > 0 && centavos(precValor) > 0) {
+            if (centavos(cantValor) > 0 && (centavos(precValor) > 0 || centavos(precUnidadValor) > 0)) {
                 conDatos += 1;
             }
 
             // El bruto se acumula sin redondear; el subtotal se redondea
             // una sola vez al final, como hace el servidor.
-            subtotalBruto += (centavos(cantValor) * centavos(precValor))
-                / (modoValor === POR_CAJA ? 100 : 100 * unidadesN);
+            if (modoValor === POR_CAJA) {
+                subtotalBruto += (centavos(cantValor) * centavos(precValor)) / 100;
+            } else {
+                // Para unidad: usa precio_unidad si existe, si no usa precio_caja
+                var precioUsar = (precUnidadValor && precUnidadValor > 0) ? centavos(precUnidadValor) : centavos(precValor);
+                subtotalBruto += (centavos(cantValor) * precioUsar) / 100;
+            }
 
             // Con el ITBMS global activado, todas las lineas son gravadas.
             var esGravada = itbmsGlobal ? true : (gravada ? gravada.checked : true);
@@ -188,14 +202,38 @@
     function agregarFila() {
         var indice = parseInt(totalFormulario.value, 10) || 0;
         var html = plantilla.innerHTML.split("__PREFIX__").join(PREFIJO + "-" + indice);
-        var envoltorio = document.createElement("tbody");
-        envoltorio.innerHTML = html.trim();
-        var fila = envoltorio.firstElementChild;
-        cuerpo.appendChild(fila);
+        // Usar insertAdjacentHTML para mejor preservación de elementos
+        cuerpo.insertAdjacentHTML("beforeend", html.trim());
+        var fila = cuerpo.lastElementChild;
         totalFormulario.value = indice + 1;
 
         var quitar = fila.querySelector(".js-quitar");
         if (quitar) { quitar.addEventListener("click", quitarFila); }
+
+        // Asegurar que el select de "Cobrar por" funcione correctamente
+        var cobrarPor = fila.querySelector(".js-cobrar-por");
+        if (cobrarPor) {
+            // Asegurar que las opciones estén presentes
+            if (cobrarPor.options.length === 0) {
+                // Si por alguna razón no hay opciones, agregarlas manualmente
+                var optUnidad = document.createElement("option");
+                optUnidad.value = "unidad";
+                optUnidad.text = "Unidad";
+                optUnidad.selected = true;
+                cobrarPor.add(optUnidad);
+
+                var optCaja = document.createElement("option");
+                optCaja.value = "caja";
+                optCaja.text = "Caja";
+                cobrarPor.add(optCaja);
+            } else {
+                // Establecer valor por defecto
+                cobrarPor.value = "unidad";
+            }
+            // Forzar que el select sea interactivo
+            cobrarPor.disabled = false;
+            cobrarPor.style.pointerEvents = "auto";
+        }
 
         var descripcion = fila.querySelector(".campo-producto");
         if (descripcion) { descripcion.focus(); }

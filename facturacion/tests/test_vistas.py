@@ -3,6 +3,7 @@
 from datetime import date
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
@@ -12,15 +13,15 @@ from facturacion.services.serie import crear_factura
 from facturacion.tests.utiles_pdf import numero_de_paginas
 
 D = Decimal
+User = get_user_model()
 
 
 def datos_linea(descripcion="Aceite vegetal 900 ml", cantidad="2",
-                precio="5.50", codigo="", categoria="", gravada="on",
-                unidades_por_caja=None, cobrar_por=None):
+                precio="5.50", gravada="on",
+                unidades_por_caja=None, cobrar_por=None, codigo=""):
     datos = {
         "descripcion": descripcion,
         "codigo_barras": codigo,
-        "categoria": categoria,
         "cantidad": cantidad,
         "precio_unitario": precio,
         "gravada": gravada,
@@ -96,6 +97,12 @@ class PruebaPantallas(TestCase):
         cls.configuracion = ConfiguracionNegocio.cargar()
         cls.configuracion.empresa_nombre = "MI EMPRESA S.A."
         cls.configuracion.save()
+        cls.usuario = User.objects.create_user(
+            username="vendedor", password="test123"
+        )
+
+    def setUp(self):
+        self.client.login(username="vendedor", password="test123")
 
     def test_la_pantalla_inicial_abre(self):
         respuesta = self.client.get(reverse("facturacion:nueva"))
@@ -133,6 +140,14 @@ class PruebaPantallas(TestCase):
 
 
 class PruebaCrearFactura(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = User.objects.create_user(
+            username="vendedor", password="test123"
+        )
+
+    def setUp(self):
+        self.client.login(username="vendedor", password="test123")
     """El formulario de la pantalla de inicio."""
 
     def test_crea_la_factura_y_lleva_al_detalle(self):
@@ -206,6 +221,14 @@ class PruebaCrearFactura(TestCase):
 
 
 class PruebaPdf(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = User.objects.create_user(
+            username="vendedor", password="test123"
+        )
+
+    def setUp(self):
+        self.client.login(username="vendedor", password="test123")
     """Descarga del PDF."""
 
     def test_descarga_el_pdf_de_la_factura(self):
@@ -229,8 +252,15 @@ class PruebaPdf(TestCase):
 class PruebaDuplicarYAnular(TestCase):
     """Duplicar una factura y anularla."""
 
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = User.objects.create_user(
+            username="vendedor", password="test123"
+        )
+        cls.factura = factura_guardada()
+
     def setUp(self):
-        self.factura = factura_guardada()
+        self.client.login(username="vendedor", password="test123")
 
     def test_duplicar_rellena_el_formulario(self):
         respuesta = self.client.get(
@@ -337,6 +367,14 @@ class PruebaVerificar(TestCase):
 
 
 class PruebaConfiguracion(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = User.objects.create_user(
+            username="vendedor", password="test123"
+        )
+
+    def setUp(self):
+        self.client.login(username="vendedor", password="test123")
     """Guardar los datos del negocio."""
 
     def test_guarda_los_datos(self):
@@ -360,6 +398,14 @@ class PruebaConfiguracion(TestCase):
 
 
 class PruebaFormularioSinDescuentosNiPortes(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = User.objects.create_user(
+            username="vendedor", password="test123"
+        )
+
+    def setUp(self):
+        self.client.login(username="vendedor", password="test123")
     """Lo que pidio el cliente: nada de descuentos ni portes en pantalla."""
 
     def test_el_formulario_no_ofrece_descuento_ni_portes(self):
@@ -426,6 +472,14 @@ class PruebaFormularioSinDescuentosNiPortes(TestCase):
 
 
 class PruebaNotasPredeterminadas(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = User.objects.create_user(
+            username="vendedor", password="test123"
+        )
+
+    def setUp(self):
+        self.client.login(username="vendedor", password="test123")
     def test_la_factura_nueva_empieza_con_las_notas_de_la_configuracion(self):
         configuracion = ConfiguracionNegocio.cargar()
         configuracion.notas_predeterminadas = "Traer el carné al recoger."
@@ -445,6 +499,14 @@ class PruebaNotasPredeterminadas(TestCase):
 
 
 class PruebaDetalleSinDescuentos(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = User.objects.create_user(
+            username="vendedor", password="test123"
+        )
+
+    def setUp(self):
+        self.client.login(username="vendedor", password="test123")
     def test_el_detalle_muestra_los_tres_totales(self):
         factura = factura_guardada()
         respuesta = self.client.get(
@@ -503,12 +565,21 @@ class PruebaDetalleSinDescuentos(TestCase):
         self.assertIn("Caja de 24 und", html)
         self.assertIn("Caja de 100 und", html)
         self.assertIn("3.00 und", html)
-        self.assertIn("0.50 / und", html)
+        # Nueva lógica: precio_unitario directo (12.00, no 0.50)
+        self.assertIn("12.00 / und", html)
         self.assertIn("2.00 cajas", html)
         self.assertIn("30.00 / caja", html)
 
 
 class PruebaColoresEnLaConfiguracion(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = User.objects.create_user(
+            username="vendedor", password="test123"
+        )
+
+    def setUp(self):
+        self.client.login(username="vendedor", password="test123")
     def _post(self, **extra):
         datos = {
             "empresa_nombre": "COMERCIAL SANTA ANA S.A.",
@@ -555,6 +626,14 @@ class PruebaColoresEnLaConfiguracion(TestCase):
 
 
 class PruebaVencimientoAutomatico(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = User.objects.create_user(
+            username="vendedor", password="test123"
+        )
+
+    def setUp(self):
+        self.client.login(username="vendedor", password="test123")
     """El vencimiento es un anio despues de la fecha y no se escribe a mano."""
 
     def test_el_formulario_no_pide_dias_de_credito_ni_vencimiento(self):
@@ -571,6 +650,14 @@ class PruebaVencimientoAutomatico(TestCase):
 
 
 class PruebaOrdenDeCompra(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = User.objects.create_user(
+            username="vendedor", password="test123"
+        )
+
+    def setUp(self):
+        self.client.login(username="vendedor", password="test123")
     """La OC se puede escribir a mano y si queda vacia se asigna automatica."""
 
     def test_el_formulario_deja_escribir_la_orden_de_compra(self):
@@ -626,6 +713,14 @@ class PruebaOrdenDeCompra(TestCase):
 
 
 class PruebaCobroPorCajaEnLaVista(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = User.objects.create_user(
+            username="vendedor", password="test123"
+        )
+
+    def setUp(self):
+        self.client.login(username="vendedor", password="test123")
     """Las lineas pueden cobrarse por unidad o por caja."""
 
     def test_se_guarda_una_linea_por_unidad_con_caja(self):
@@ -642,8 +737,8 @@ class PruebaCobroPorCajaEnLaVista(TestCase):
         linea = Factura.objects.get().lineas.get()
         self.assertEqual(linea.unidades_por_caja, 24)
         self.assertEqual(linea.cobrar_por, "unidad")
-        # 12 x 12.00 / 24 = 6.00
-        self.assertEqual(linea.monto, D("6.00"))
+        # Nueva lógica: 12 x 12.00 = 144.00 (precio_unitario directo)
+        self.assertEqual(linea.monto, D("144.00"))
 
     def test_se_guarda_una_linea_por_caja(self):
         self.client.post(
@@ -711,6 +806,14 @@ class PruebaCobroPorCajaEnLaVista(TestCase):
 
 
 class PruebaRucOpcional(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = User.objects.create_user(
+            username="vendedor", password="test123"
+        )
+
+    def setUp(self):
+        self.client.login(username="vendedor", password="test123")
     """El RUC/DV del cliente y de la empresa se puede ocultar."""
 
     def test_sin_ruc_el_pdf_no_imprime_la_linea(self):
@@ -747,6 +850,14 @@ class PruebaRucOpcional(TestCase):
 
 
 class PruebaConfiguracionMuestraRuc(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = User.objects.create_user(
+            username="vendedor", password="test123"
+        )
+
+    def setUp(self):
+        self.client.login(username="vendedor", password="test123")
     def test_el_formulario_tiene_la_casilla(self):
         respuesta = self.client.get(reverse("facturacion:configuracion"))
         self.assertIn("mostrar_ruc", respuesta.context["form"].fields)

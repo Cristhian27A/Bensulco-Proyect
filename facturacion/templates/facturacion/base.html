@@ -14,8 +14,10 @@
             </a>
             <nav class="menu">
                 <a href="{% url 'facturacion:nueva' %}" class="menu-enlace {% if request.resolver_match.url_name == 'nueva' %}activo{% endif %}">Nueva factura</a>
+                <a href="{% url 'facturacion:pedidos_pendientes' %}" class="menu-enlace {% if request.resolver_match.url_name == 'pedidos_pendientes' %}activo{% endif %}">Pedidos Pendientes</a>
                 <a href="{% url 'facturacion:historial' %}" class="menu-enlace {% if request.resolver_match.url_name == 'historial' %}activo{% endif %}">Historial</a>
                 <a href="{% url 'facturacion:configuracion' %}" class="menu-enlace {% if request.resolver_match.url_name == 'configuracion' %}activo{% endif %}">Configuración</a>
+                <a href="{% url 'logout' %}" class="menu-enlace">Cerrar sesión</a>
             </nav>
         </div>
     </header>

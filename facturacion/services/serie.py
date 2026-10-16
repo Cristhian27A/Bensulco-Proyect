@@ -135,6 +135,7 @@ def crear_factura(datos_factura: dict, lineas: list) -> Factura:
             "categoria": _texto(linea, "categoria"),
             "cantidad": _numero(linea, "cantidad"),
             "precio_unitario": _numero(linea, "precio_unitario"),
+            "precio_unidad": _numero(linea, "precio_unidad") if linea.get("precio_unidad") else None,
             # El descuento sigue existiendo en el modelo, siempre en 0.
             "descuento_pct": CERO,
             "gravada": _numero(linea, "gravada"),
@@ -150,6 +151,7 @@ def crear_factura(datos_factura: dict, lineas: list) -> Factura:
                 gravada=datos["gravada"],
                 unidades_por_caja=datos["unidades_por_caja"],
                 cobrar_por=datos["cobrar_por"],
+                precio_unidad=datos["precio_unidad"],
             )
         )
 
@@ -202,6 +204,7 @@ def crear_factura(datos_factura: dict, lineas: list) -> Factura:
             categoria=datos["categoria"],
             cantidad=calculo.cantidad,
             precio_unitario=calculo.precio_unitario,
+            precio_unidad=datos["precio_unidad"],
             descuento_pct=calculo.descuento_pct,
             gravada=calculo.gravada,
             unidades_por_caja=calculo.unidades_por_caja,

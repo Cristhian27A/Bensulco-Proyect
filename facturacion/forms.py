@@ -102,11 +102,7 @@ class LineaFacturaForm(forms.Form):
     )
     codigo_barras = forms.CharField(
         label="Código de barras", max_length=100, required=False,
-        widget=forms.TextInput(attrs={"placeholder": "Código"}),
-    )
-    categoria = forms.CharField(
-        label="Categoría", max_length=120, required=False,
-        widget=forms.TextInput(attrs={"placeholder": "Categoría"}),
+        widget=forms.TextInput(attrs={"placeholder": "Código", "class": "campo-pequeno"}),
     )
     cantidad = forms.DecimalField(
         label="Cantidad", required=False, min_value=CERO, max_digits=14, decimal_places=2,
@@ -116,6 +112,11 @@ class LineaFacturaForm(forms.Form):
         label="Precio caja", required=False, min_value=CERO, max_digits=14,
         decimal_places=2,
         widget=forms.NumberInput(attrs={"step": "0.01", "min": "0", "class": "campo-numero js-precio"}),
+    )
+    precio_unidad = forms.DecimalField(
+        label="Precio unidad", required=False, min_value=CERO, max_digits=14,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"step": "0.01", "min": "0", "class": "campo-numero js-precio-unidad"}),
     )
     unidades_por_caja = forms.IntegerField(
         label="Unidades por caja", required=False, min_value=1, initial=1,
@@ -136,8 +137,9 @@ class LineaFacturaForm(forms.Form):
 
 LineaFacturaFormSet = formset_factory(
     LineaFacturaForm,
-    extra=5,
+    extra=1,
     can_delete=False,
+    max_num=100,
 )
 
 

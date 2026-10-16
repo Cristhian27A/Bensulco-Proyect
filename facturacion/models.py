@@ -247,23 +247,38 @@ class LineaFactura(models.Model):
         "Cantidad", max_digits=14, decimal_places=2,
         validators=[MinValueValidator(Decimal("0.01"))],
     )
-    precio_unitario = models.DecimalField("Precio unitario", max_digits=14, decimal_places=2)
+    precio_unitario = models.DecimalField("Precio caja", max_digits=14, decimal_places=2)
+    precio_unidad = models.DecimalField(
+        "Precio unidad", max_digits=14, decimal_places=2,
+        default=CERO, blank=True, null=True,
+        help_text="Precio por unidad si se cobra por unidad (opcional)."
+    )
     descuento_pct = models.DecimalField(
         "Descuento %", max_digits=6, decimal_places=2, default=CERO
     )
     gravada = models.BooleanField("Gravada (ITBMS 7%)", default=True)
-    # El precio se guarda por la CAJA completa; si cobrar_por es "unidad",
-    # el monto divide entre las unidades que trae la caja.
+    # El precio_unitario es el precio de la CAJA completa. Si cobrar_por es "unidad"
+    # y no hay precio_unidad, el monto divide entre las unidades que trae la caja.
     unidades_por_caja = models.PositiveIntegerField(
         "Unidades por caja", default=1,
         validators=[MinValueValidator(1)],
-        help_text="Cuántas unidades trae la caja. El precio es por la caja.",
+        help_text="Cuántas unidades trae la caja. El precio_unitario es por la caja.",
     )
     cobrar_por = models.CharField(
         "Cobrar por", max_length=10, choices=COBRAR_POR_OPCIONES,
         default=COBRAR_POR_UNIDAD,
     )
     monto = models.DecimalField("Monto", max_digits=14, decimal_places=2, default=CERO)
+    # Referencia opcional al producto del catálogo para mantener consistencia
+    # cuando una línea de factura proviene de un pedido B2B.
+    producto = models.ForeignKey(
+        "catalogo.Producto",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Producto del catálogo",
+        related_name="lineas_factura",
+    )
 
     class Meta:
         verbose_name = "Linea de factura"
@@ -286,8 +301,10 @@ class LineaFactura(models.Model):
     @property
     def precio_efectivo_texto(self):
         """Precio efectivo listo para mostrar: '30.00 / caja' o '1.25 / und'."""
+        from facturacion.services.totales import precio_efectivo
         precio = precio_efectivo(
-            self.precio_unitario, self.unidades_por_caja, self.cobrar_por
+            self.precio_unitario, self.unidades_por_caja, self.cobrar_por,
+            self.precio_unidad if self.precio_unidad and self.precio_unidad > 0 else None
         )
         sufijo = " / caja" if self.cobrar_por == COBRAR_POR_CAJA else " / und"
         return f"{formato_precio(precio)}{sufijo}"

@@ -1,0 +1,239 @@
+{% extends "catalogo/base.html" %}
+
+{% block titulo %}Finalizar Pedido{% endblock %}
+{% block header_title %}Finalizar Pedido{% endblock %}
+
+{% block contenido %}
+<div class="pedido-container">
+    <div class="resumen-carrito">
+        <h2>Resumen del Pedido</h2>
+
+        <table class="tabla-carrito">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cajas</th>
+                    <th>Unidades</th>
+                    <th>Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in carrito.values %}
+                <tr>
+                    <td>
+                        <strong>{{ item.nombre }}</strong><br>
+                        <small>{{ item.sku }}</small>
+                    </td>
+                    <td>{{ item.cantidad_cajas }}</td>
+                    <td>{{ item.cantidad_unidades }}</td>
+                    <td>${{ item.subtotal|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3"><strong>Total:</strong></td>
+                    <td><strong>${{ total|floatformat:2 }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="acciones-carrito">
+            <a href="{% url 'catalogo:catalogo' %}" class="btn btn-primary">
+                ← Volver al Catálogo
+            </a>
+            <a href="{% url 'catalogo:vaciar' %}" class="btn btn-danger">
+                Vaciar Carrito
+            </a>
+        </div>
+    </div>
+
+    <div class="formulario-cliente">
+        <h2>Datos del Cliente</h2>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="ruc">RUC / DV *</label>
+                <input type="text"
+                       name="ruc"
+                       id="ruc"
+                       required
+                       placeholder="1-2345678-90-123"
+                       pattern="[0-9\-]+"
+                       list="clientes-existentes">
+                <datalist id="clientes-existentes">
+                    {% for cliente in clientes %}
+                    <option value="{{ cliente.ruc }}" data-nombre="{{ cliente.nombre_empresa }}" data-email="{{ cliente.email_contacto }}" data-telefono="{{ cliente.telefono }}">
+                        {{ cliente.nombre_empresa }} - {{ cliente.ruc }}
+                    </option>
+                    {% endfor %}
+                </datalist>
+                <small>Ingrese su RUC o seleccione uno de la lista</small>
+            </div>
+
+            <div class="form-group">
+                <label for="nombre_empresa">Nombre de la Empresa *</label>
+                <input type="text"
+                       name="nombre_empresa"
+                       id="nombre_empresa"
+                       required
+                       placeholder="Nombre de su empresa">
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email de Contacto *</label>
+                <input type="email"
+                       name="email"
+                       id="email"
+                       required
+                       placeholder="email@empresa.com">
+            </div>
+
+            <div class="form-group">
+                <label for="telefono">Teléfono</label>
+                <input type="text"
+                       name="telefono"
+                       id="telefono"
+                       placeholder="+507 0000-0000">
+            </div>
+
+            <div class="form-group">
+                <label for="notas">Notas Adicionales</label>
+                <textarea name="notas"
+                          id="notas"
+                          rows="3"
+                          placeholder="Instrucciones especiales para el pedido..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-success btn-full">
+                Confirmar Pedido
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+// Autocompletar datos cuando se selecciona un cliente existente
+document.getElementById('ruc').addEventListener('change', function() {
+    const selectedOption = document.querySelector(`#clientes-existentes option[value="${this.value}"]`);
+    if (selectedOption) {
+        document.getElementById('nombre_empresa').value = selectedOption.dataset.nombre || '';
+        document.getElementById('email').value = selectedOption.dataset.email || '';
+        document.getElementById('telefono').value = selectedOption.dataset.telefono || '';
+    }
+});
+</script>
+
+<style>
+    .pedido-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+    }
+
+    .resumen-carrito,
+    .formulario-cliente {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .resumen-carrito h2,
+    .formulario-cliente h2 {
+        margin-top: 0;
+        color: #333;
+        border-bottom: 2px solid #3A0088;
+        padding-bottom: 10px;
+    }
+
+    .tabla-carrito {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+
+    .tabla-carrito th,
+    .tabla-carrito td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .tabla-carrito th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .tabla-carrito tfoot tr {
+        background: #e9ecef;
+        font-weight: 600;
+    }
+
+    .acciones-carrito {
+        display: flex;
+        gap: 10px;
+        justify-content: space-between;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #3A0088;
+    }
+
+    .form-group small {
+        display: block;
+        margin-top: 5px;
+        color: #666;
+        font-size: 12px;
+    }
+
+    @media (max-width: 768px) {
+        .pedido-container {
+            grid-template-columns: 1fr;
+        }
+
+        .tabla-carrito {
+            font-size: 12px;
+        }
+
+        .tabla-carrito th,
+        .tabla-carrito td {
+            padding: 8px 4px;
+        }
+
+        .acciones-carrito {
+            flex-direction: column;
+        }
+
+        .acciones-carrito .btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}

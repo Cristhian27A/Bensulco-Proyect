@@ -1,0 +1,271 @@
+{% extends "facturacion/base.html" %}
+
+{% block titulo %}Detalle de Pedido{% endblock %}
+
+{% block contenido %}
+<div class="detalle-pedido">
+    <div class="pedido-header">
+        <h1>Pedido PED-{{ pedido.pk|stringformat:"04d" }}</h1>
+        <div class="pedido-meta">
+            <span class="estado-badge estado-{{ pedido.estado }}">
+                {{ pedido.get_estado_display }}
+            </span>
+            <span class="fecha">{{ pedido.fecha_creacion|date:"d/m/Y H:i" }}</span>
+        </div>
+    </div>
+
+    <div class="cliente-info">
+        <h2>Cliente</h2>
+        <p><strong>Empresa:</strong> {{ pedido.cliente.nombre_empresa }}</p>
+        <p><strong>RUC:</strong> {{ pedido.cliente.ruc }}</p>
+        {% if pedido.cliente.email_contacto %}
+        <p><strong>Email:</strong> {{ pedido.cliente.email_contacto }}</p>
+        {% endif %}
+        {% if pedido.cliente.telefono %}
+        <p><strong>Teléfono:</strong> {{ pedido.cliente.telefono }}</p>
+        {% endif %}
+        {% if pedido.cliente.direccion %}
+        <p><strong>Dirección:</strong> {{ pedido.cliente.direccion }}</p>
+        {% endif %}
+    </div>
+
+    <div class="lineas-pedido">
+        <h2>Productos Solicitados</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>SKU</th>
+                    <th>Cajas</th>
+                    <th>Unidades</th>
+                    <th>Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for linea in lineas %}
+                <tr>
+                    <td>
+                        <strong>{{ linea.producto.nombre }}</strong>
+                        {% if linea.producto.categoria %}
+                        <br><small>{{ linea.producto.categoria.nombre }}</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ linea.producto.sku }}</td>
+                    <td>{{ linea.cantidad_cajas }}</td>
+                    <td>{{ linea.cantidad_unidades }}</td>
+                    <td><strong>${{ linea.subtotal|floatformat:2 }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="4"><strong>Total:</strong></td>
+                    <td><strong>${{ pedido.total_estimado|floatformat:2 }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    {% if pedido.notas %}
+    <div class="notas-pedido">
+        <h2>Notas</h2>
+        <p>{{ pedido.notas|linebreaks }}</p>
+    </div>
+    {% endif %}
+
+    <div class="acciones-pedido">
+        {% if pedido.puede_facturarse and not pedido.factura_generada %}
+        <form method="post" action="{% url 'facturacion:convertir_pedido' pedido.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-convertir">
+                📄 Convertir a Factura
+            </button>
+        </form>
+        {% elif pedido.factura_generada %}
+        <a href="{% url 'facturacion:detalle' pedido.factura_generada.pk %}" class="btn btn-ver-factura">
+            📄 Ver Factura {{ pedido.factura_generada.numero_serie }}
+        </a>
+        {% endif %}
+        <a href="{% url 'facturacion:pedidos_pendientes' %}" class="btn btn-volver">
+            ← Volver a Pedidos
+        </a>
+    </div>
+</div>
+
+<style>
+    .detalle-pedido {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .pedido-header {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .pedido-header h1 {
+        margin: 0 0 10px 0;
+        color: #3A0088;
+    }
+
+    .pedido-meta {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .estado-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .estado-pendiente {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .estado-procesando {
+        background: #cce5ff;
+        color: #004085;
+    }
+
+    .estado-facturado {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .estado-cancelado {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .fecha {
+        color: #666;
+        font-size: 14px;
+    }
+
+    .cliente-info,
+    .lineas-pedido,
+    .notas-pedido {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .cliente-info h2,
+    .lineas-pedido h2,
+    .notas-pedido h2 {
+        margin-top: 0;
+        color: #333;
+        border-bottom: 2px solid #3A0088;
+        padding-bottom: 10px;
+    }
+
+    .cliente-info p {
+        margin: 8px 0;
+        color: #555;
+    }
+
+    .lineas-pedido table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .lineas-pedido th,
+    .lineas-pedido td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .lineas-pedido th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .lineas-pedido tfoot tr {
+        background: #e9ecef;
+        font-weight: 600;
+    }
+
+    .notas-pedido p {
+        margin: 0;
+        color: #555;
+        line-height: 1.6;
+    }
+
+    .acciones-pedido {
+        display: flex;
+        gap: 15px;
+        justify-content: flex-end;
+        margin-bottom: 20px;
+    }
+
+    .btn {
+        display: inline-block;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: background 0.3s;
+    }
+
+    .btn-convertir {
+        background: #28a745;
+        color: white;
+    }
+
+    .btn-convertir:hover {
+        background: #218838;
+    }
+
+    .btn-ver-factura {
+        background: #3A0088;
+        color: white;
+    }
+
+    .btn-ver-factura:hover {
+        background: #5B3A9E;
+    }
+
+    .btn-volver {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-volver:hover {
+        background: #5a6268;
+    }
+
+    @media (max-width: 768px) {
+        .lineas-pedido {
+            overflow-x: auto;
+        }
+
+        .lineas-pedido table {
+            min-width: 600px;
+        }
+
+        .acciones-pedido {
+            flex-direction: column;
+        }
+
+        .acciones-pedido .btn {
+            width: 100%;
+            text-align: center;
+        }
+    }
+</style>
+{% endblock %}

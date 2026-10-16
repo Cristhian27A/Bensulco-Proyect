@@ -73,6 +73,7 @@
                             {% csrf_token %}
                             <button type="submit" class="boton boton-peligro boton-pequeno">Anular</button>
                         </form>
+                        <a class="boton boton-peligro boton-pequeno" href="{% url 'facturacion:confirmar_eliminar' factura.pk %}">Eliminar</a>
                         {% endif %}
                     </div>
                 </td>

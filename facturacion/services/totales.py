@@ -62,15 +62,19 @@ def precio_por_unidad(precio_caja, unidades_por_caja=1) -> Decimal:
 
 
 def precio_efectivo(precio_caja, unidades_por_caja=1,
-                    cobrar_por=COBRAR_POR_UNIDAD) -> Decimal:
+                    cobrar_por=COBRAR_POR_UNIDAD, precio_unidad=None) -> Decimal:
     """Precio por el que se multiplica la cantidad de la linea.
 
-    "caja" usa el precio de la caja completa; "unidad" lo divide entre las
-    unidades que trae la caja.
+    "caja" usa el precio de la caja completo; "unidad" usa el precio_unitario
+    directamente (para tiendas pequeñas que venden por unidad).
     """
     if cobrar_por == COBRAR_POR_CAJA:
         return a_decimal(precio_caja)
-    return precio_por_unidad(precio_caja, unidades_por_caja)
+    # Para unidad: usa precio_unitario directamente (no divide precio_caja)
+    if precio_unidad is not None and precio_unidad > CERO:
+        return a_decimal(precio_unidad)
+    # Fallback: usa precio_caja como precio_unitario si no se especifica
+    return a_decimal(precio_caja)
 
 
 def formato_precio(valor, decimales_max=4) -> str:
@@ -92,21 +96,12 @@ def formato_precio(valor, decimales_max=4) -> str:
 
 
 def monto_linea(cantidad, precio_caja, descuento_pct=CERO,
-                unidades_por_caja=1, cobrar_por=COBRAR_POR_UNIDAD) -> Decimal:
+                unidades_por_caja=1, cobrar_por=COBRAR_POR_UNIDAD,
+                precio_unidad=None) -> Decimal:
     """Monto de una linea, redondeado una sola vez.
 
-    ``precio_caja`` es el precio de la caja completa. Si ``cobrar_por`` es
-    "unidad", el monto divide entre las unidades que trae la caja.
-
-    Ejemplos (caja de 24 a 30.00):
-        12 und  -> 12 x 30 / 24 = 15.00
-        24 und  -> 24 x 30 / 24 = 30.00
-        1 caja  -> 1 x 30 = 30.00
-        2 cajas -> 2 x 30 = 60.00
-        30 und  -> 30 x 30 / 24 = 37.50
-
-    Y una caja de 3 a 10.00:
-        5 und -> 5 x 10 / 3 = 16.666... -> 16.67
+    Si ``cobrar_por`` es "caja": cantidad_cajas * precio_caja.
+    Si ``cobrar_por`` es "unidad": cantidad_unidades * precio_unitario.
     """
     cantidad = a_decimal(cantidad)
     precio = a_decimal(precio_caja)
@@ -115,7 +110,13 @@ def monto_linea(cantidad, precio_caja, descuento_pct=CERO,
     if cantidad <= CERO or precio < CERO:
         return CERO
 
-    bruto = cantidad * precio_efectivo(precio, unidades_por_caja, cobrar_por)
+    # Determinar el precio efectivo según el modo de cobro
+    if cobrar_por == COBRAR_POR_CAJA:
+        bruto = cantidad * precio
+    else:
+        # Para unidad: usa precio_unitario directo (precio_caja en este caso es el precio por unidad)
+        precio_usar = precio_unidad if (precio_unidad is not None and precio_unidad > CERO) else precio
+        bruto = cantidad * precio_usar
 
     if descuento > CERO:
         if descuento >= CIENTO:
@@ -137,12 +138,13 @@ class LineaCalculo:
     monto: Decimal
     unidades_por_caja: int = 1
     cobrar_por: str = COBRAR_POR_UNIDAD
+    precio_unidad: Decimal = None
 
     @property
     def precio_para_mostrar(self) -> Decimal:
         """El precio que se ve en el PDF: la caja o la unidad."""
         return precio_efectivo(
-            self.precio_unitario, self.unidades_por_caja, self.cobrar_por
+            self.precio_unitario, self.unidades_por_caja, self.cobrar_por, self.precio_unidad
         )
 
     @property
@@ -182,11 +184,13 @@ class Totales:
 
 
 def calcular_linea(cantidad, precio_unitario, descuento_pct=CERO, gravada=True,
-                   unidades_por_caja=1, cobrar_por=COBRAR_POR_UNIDAD) -> LineaCalculo:
+                   unidades_por_caja=1, cobrar_por=COBRAR_POR_UNIDAD,
+                   precio_unidad=None) -> LineaCalculo:
     """Prepara una linea con su monto ya redondeado.
 
     ``precio_unitario`` es el precio de la CAJA completa. Si ``cobrar_por``
-    es "unidad", el monto se divide entre las unidades de la caja.
+    es "unidad" y se proporciona ``precio_unidad``, se usa directamente.
+    Si no, divide el precio de la caja entre las unidades de la caja.
     """
     cantidad = a_decimal(cantidad)
     precio = a_decimal(precio_unitario)
@@ -207,7 +211,7 @@ def calcular_linea(cantidad, precio_unitario, descuento_pct=CERO, gravada=True,
         gravada=bool(gravada),
         unidades_por_caja=unidades,
         cobrar_por=cobrar_por,
-        monto=monto_linea(cantidad, precio, descuento, unidades, cobrar_por),
+        monto=monto_linea(cantidad, precio, descuento, unidades, cobrar_por, precio_unidad),
     )
 
 
@@ -236,6 +240,7 @@ def calcular_totales(lineas, portes=CERO, itbms_activo=True) -> Totales:
                 gravada=datos["gravada"],
                 unidades_por_caja=datos["unidades_por_caja"],
                 cobrar_por=datos["cobrar_por"],
+                precio_unidad=datos["precio_unidad"],
             )
         calculadas.append(linea)
         suma_bruta += linea.bruto
@@ -295,6 +300,7 @@ def _leer_item(item) -> dict:
     return {
         "cantidad": obtener("cantidad", CERO),
         "precio_unitario": obtener("precio_unitario", CERO),
+        "precio_unidad": obtener("precio_unidad", None),
         "descuento_pct": obtener("descuento_pct", CERO),
         "gravada": obtener("gravada", True),
         "unidades_por_caja": obtener("unidades_por_caja", 1),

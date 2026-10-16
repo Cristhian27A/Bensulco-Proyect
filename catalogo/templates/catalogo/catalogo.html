@@ -1,0 +1,335 @@
+{% extends "catalogo/base.html" %}
+
+{% block titulo %}Catálogo de Productos{% endblock %}
+
+{% block contenido %}
+<div class="filtros">
+    <form method="get" class="filtro-form">
+        <div class="filtro-item">
+            <label for="categoria">Categoría:</label>
+            <select name="categoria" id="categoria">
+                <option value="">Todas</option>
+                {% for cat in categorias %}
+                    <option value="{{ cat.id }}" {% if cat.id == categoria_activa %}selected{% endif %}>
+                        {{ cat.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filtro-item">
+            <label for="q">Buscar:</label>
+            <input type="text" name="q" id="q" value="{{ busqueda }}" placeholder="Nombre, SKU...">
+        </div>
+
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+    </form>
+</div>
+
+{% if carrito %}
+<div class="carrito-resumen">
+    <p>
+        <strong>{{ cantidad_items }}</strong> producto(s) en el carrito -
+        Total: <strong>${{ total_carrito|floatformat:2 }}</strong>
+    </p>
+    <a href="{% url 'catalogo:formulario_pedido' %}" class="btn btn-success">
+        Finalizar Pedido
+    </a>
+    <a href="{% url 'catalogo:vaciar' %}" class="btn btn-danger btn-sm">
+        Vaciar Carrito
+    </a>
+</div>
+{% endif %}
+
+<div class="productos-grid">
+    {% for producto in productos %}
+    <div class="producto-card">
+        {% if producto.imagen %}
+        <div class="producto-imagen">
+            <img src="{{ producto.imagen.url }}" alt="{{ producto.nombre }}">
+        </div>
+        {% else %}
+        <div class="producto-imagen placeholder">
+            <span>Sin imagen</span>
+        </div>
+        {% endif %}
+
+        <div class="producto-info">
+            <div class="producto-sku">{{ producto.sku }}</div>
+            <h3 class="producto-nombre">{{ producto.nombre }}</h3>
+            <p class="producto-descripcion">{{ producto.descripcion_corta }}</p>
+            <div class="producto-categoria">{{ producto.categoria.nombre }}</div>
+
+            <div class="producto-precios">
+                <div class="precio-item">
+                    <span class="precio-label">Caja:</span>
+                    <span class="precio-valor">${{ producto.precio_caja|floatformat:2 }}</span>
+                    <span class="precio-detalle">({{ producto.unidades_por_caja }} und)</span>
+                </div>
+                <div class="precio-item">
+                    <span class="precio-label">Unidad:</span>
+                    <span class="precio-valor">${{ producto.precio_unidad|floatformat:2 }}</span>
+                </div>
+            </div>
+
+            <form method="post" action="{% url 'catalogo:agregar' %}" class="agregar-form">
+                {% csrf_token %}
+                <input type="hidden" name="producto_id" value="{{ producto.id }}">
+
+                <div class="cantidad-inputs">
+                    <div class="cantidad-group">
+                        <label for="cajas_{{ producto.id }}">Cajas:</label>
+                        <input type="number"
+                               name="cantidad_cajas"
+                               id="cajas_{{ producto.id }}"
+                               value="0"
+                               min="0"
+                               step="0.5"
+                               class="input-cantidad">
+                    </div>
+
+                    <div class="cantidad-group">
+                        <label for="unidades_{{ producto.id }}">Unidades:</label>
+                        <input type="number"
+                               name="cantidad_unidades"
+                               id="unidades_{{ producto.id }}"
+                               value="0"
+                               min="0"
+                               step="1"
+                               class="input-cantidad">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full">
+                    Agregar al Carrito
+                </button>
+            </form>
+        </div>
+    </div>
+    {% empty %}
+    <div class="no-resultados">
+        <p>No se encontraron productos.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+    .filtros {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .filtro-form {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+
+    .filtro-item {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .filtro-item label {
+        font-weight: 500;
+        font-size: 14px;
+    }
+
+    .filtro-item select,
+    .filtro-item input {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .carrito-resumen {
+        background: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .carrito-resumen p {
+        margin: 0;
+        font-size: 16px;
+    }
+
+    .productos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+    }
+
+    .producto-card {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+
+    .producto-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .producto-imagen {
+        width: 100%;
+        height: 200px;
+        background: #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .producto-imagen img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .producto-imagen.placeholder {
+        color: #999;
+        font-size: 14px;
+    }
+
+    .producto-info {
+        padding: 15px;
+    }
+
+    .producto-sku {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 5px;
+    }
+
+    .producto-nombre {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 8px 0;
+        color: #333;
+    }
+
+    .producto-descripcion {
+        font-size: 13px;
+        color: #666;
+        margin: 0 0 10px 0;
+        line-height: 1.4;
+    }
+
+    .producto-categoria {
+        display: inline-block;
+        background: #e9ecef;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        color: #495057;
+        margin-bottom: 12px;
+    }
+
+    .producto-precios {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 12px;
+    }
+
+    .precio-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 5px;
+        font-size: 14px;
+    }
+
+    .precio-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .precio-label {
+        color: #666;
+        font-weight: 500;
+    }
+
+    .precio-valor {
+        color: #3A0088;
+        font-weight: 600;
+    }
+
+    .precio-detalle {
+        font-size: 11px;
+        color: #999;
+    }
+
+    .agregar-form {
+        margin-top: 12px;
+    }
+
+    .cantidad-inputs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .cantidad-group {
+        flex: 1;
+    }
+
+    .cantidad-group label {
+        display: block;
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 4px;
+    }
+
+    .input-cantidad {
+        width: 100%;
+        padding: 6px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .btn-full {
+        width: 100%;
+    }
+
+    .no-resultados {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+    }
+
+    @media (max-width: 768px) {
+        .filtro-form {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .filtro-item select,
+        .filtro-item input {
+            width: 100%;
+        }
+
+        .carrito-resumen {
+            flex-direction: column;
+            gap: 10px;
+            text-align: center;
+        }
+
+        .productos-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}

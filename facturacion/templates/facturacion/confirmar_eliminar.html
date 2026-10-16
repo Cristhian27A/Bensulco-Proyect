@@ -1,0 +1,33 @@
+{% extends "facturacion/base.html" %}
+
+{% block contenido %}
+<h1 class="titulo-pagina">Eliminar Factura</h1>
+
+<section class="tarjeta">
+    <h2 class="tarjeta-titulo">¿Estás seguro?</h2>
+    <p class="pista">
+        Estás a punto de eliminar permanentemente la factura 
+        <strong>{{ factura.numero_serie }}</strong> por un total de 
+        <strong>B/. {{ factura.total|floatformat:2 }}</strong>.
+    </p>
+    <p class="pista">
+        Esta acción <strong>no se puede deshacer</strong>. Se eliminarán:
+    </p>
+    <ul class="pista" style="margin-left: 20px; margin-top: 10px;">
+        <li>La factura y todos sus datos</li>
+        <li>Todas las líneas de productos asociadas</li>
+        <li>El registro en el historial</li>
+    </ul>
+    <p class="pista" style="margin-top: 15px;">
+        Si solo quieres cancelar la factura, usa la opción "Anular" en su lugar.
+    </p>
+</section>
+
+<div class="fila-botones">
+    <form method="post" action="{% url 'facturacion:eliminar' factura.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="boton boton-peligro">Sí, eliminar permanentemente</button>
+    </form>
+    <a href="{% url 'facturacion:detalle' factura.pk %}" class="boton boton-plano">Cancelar</a>
+</div>
+{% endblock %}

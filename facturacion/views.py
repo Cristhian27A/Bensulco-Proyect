@@ -4,7 +4,9 @@ from datetime import date
 from decimal import Decimal
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse
@@ -12,13 +14,14 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
+from catalogo.models import PedidoB2B
 from facturacion.forms import (
     ConfiguracionForm,
     FacturaForm,
     FiltroHistorialForm,
     LineaFacturaFormSet,
 )
-from facturacion.models import ConfiguracionNegocio, Factura
+from facturacion.models import ConfiguracionNegocio, Factura, LineaFactura
 from facturacion.services import serie as servicio_serie
 from facturacion.services import pdf as servicio_pdf
 from facturacion.services import totales as servicio_totales
@@ -65,6 +68,7 @@ def _datos_para_formulario(factura: Factura) -> dict:
     return {"factura": datos, "lineas": lineas, "duplicada_de": factura.pk}
 
 
+@login_required
 def nueva_factura(request):
     """Pantalla de inicio: el formulario para crear una factura."""
     configuracion = _configuracion()
@@ -89,6 +93,7 @@ def nueva_factura(request):
                     "categoria": (datos.get("categoria") or "").strip(),
                     "cantidad": datos.get("cantidad") or 0,
                     "precio_unitario": datos.get("precio_unitario") or 0,
+                    "precio_unidad": datos.get("precio_unidad") or None,
                     "gravada": True if aplicar_itbms else datos.get("gravada", True),
                     "unidades_por_caja": datos.get("unidades_por_caja") or 1,
                     "cobrar_por": datos.get("cobrar_por") or servicio_totales.COBRAR_POR_UNIDAD,
@@ -101,7 +106,7 @@ def nueva_factura(request):
                 )
             elif any(
                 D(linea["cantidad"] or 0) <= 0
-                or D(linea["precio_unitario"] or 0) <= 0
+                or (D(linea["precio_unitario"] or 0) <= 0 and not linea.get("precio_unidad"))
                 for linea in lineas
             ):
                 messages.error(
@@ -169,6 +174,7 @@ def nueva_factura(request):
 
 
 @require_GET
+@login_required
 def duplicar_factura(request, pk):
     """Abre el formulario precargado con los datos de una factura existente."""
     factura = get_object_or_404(
@@ -178,6 +184,7 @@ def duplicar_factura(request, pk):
     return redirect("facturacion:nueva")
 
 
+@login_required
 def historial(request):
     """Tabla de facturas con búsqueda, filtros y paginación."""
     form = FiltroHistorialForm(request.GET or None)
@@ -220,6 +227,7 @@ def historial(request):
     )
 
 
+@login_required
 def detalle_factura(request, pk):
     """Resumen legible de una factura, con el PDF en pantalla."""
     factura = get_object_or_404(Factura.objects.prefetch_related("lineas"), pk=pk)
@@ -238,6 +246,7 @@ def detalle_factura(request, pk):
 
 
 @require_GET
+@login_required
 def factura_pdf(request, pk):
     """Descarga (o muestra) el PDF de la factura."""
     from facturacion.services.pdf import generar_pdf, nombre_archivo_pdf
@@ -253,6 +262,7 @@ def factura_pdf(request, pk):
 
 
 @require_POST
+@login_required
 def anular_factura(request, pk):
     """Anula una factura. Una factura emitida no se edita nunca."""
     factura = get_object_or_404(Factura, pk=pk)
@@ -266,6 +276,29 @@ def anular_factura(request, pk):
     return redirect(reverse("facturacion:detalle", args=[factura.pk]))
 
 
+@login_required
+def confirmar_eliminar_factura(request, pk):
+    """Muestra la página de confirmación para eliminar una factura."""
+    factura = get_object_or_404(Factura, pk=pk)
+    return render(request, "facturacion/confirmar_eliminar.html", {
+        "factura": factura,
+    })
+
+
+@require_POST
+@login_required
+def eliminar_factura(request, pk):
+    """Elimina una factura y sus líneas de forma permanente."""
+    factura = get_object_or_404(Factura, pk=pk)
+    numero_serie = factura.numero_serie
+    factura.delete()
+    messages.success(
+        request, f"Factura {numero_serie} eliminada permanentemente."
+    )
+    return redirect("facturacion:historial")
+
+
+@login_required
 def configuracion(request):
     """Página única con los datos del negocio."""
     configuracion = _configuracion()
@@ -325,3 +358,136 @@ def verificar(request, serie, codigo):
             "codigo": codigo,
         },
     )
+
+
+@login_required
+def pedidos_pendientes(request):
+    """Lista de pedidos B2B pendientes para los vendedores."""
+    form_filtros = None
+    pedidos = PedidoB2B.objects.filter(
+        estado=PedidoB2B.ESTADO_PENDIENTE
+    ).select_related("cliente")
+
+    # Filtros opcionales
+    estado = request.GET.get("estado")
+    if estado:
+        pedidos = PedidoB2B.objects.filter(estado=estado).select_related("cliente")
+
+    # Paginación
+    paginador = Paginator(pedidos, CANTIDAD_POR_PAGINA)
+    pagina = paginador.get_page(request.GET.get("pagina"))
+
+    return render(
+        request,
+        "facturacion/pedidos_pendientes.html",
+        {
+            "pagina": pagina,
+            "paginador": paginador,
+            "total_pedidos": paginador.count,
+            "estado_filtro": estado,
+        },
+    )
+
+
+@login_required
+def detalle_pedido(request, pedido_id):
+    """Detalle de un pedido B2B."""
+    pedido = get_object_or_404(
+        PedidoB2B.objects.prefetch_related("lineas__producto"), pk=pedido_id
+    )
+
+    return render(
+        request,
+        "facturacion/detalle_pedido.html",
+        {
+            "pedido": pedido,
+            "lineas": pedido.lineas.all(),
+        },
+    )
+
+
+@require_POST
+@login_required
+@transaction.atomic
+def convertir_pedido_a_factura(request, pedido_id):
+    """Convierte un pedido B2B en una factura."""
+    pedido = get_object_or_404(
+        PedidoB2B.objects.prefetch_related("lineas__producto"), pk=pedido_id
+    )
+
+    if not pedido.puede_facturarse:
+        messages.error(
+            request,
+            f"El pedido {pedido.pk} no puede facturarse. Estado actual: {pedido.get_estado_display()}",
+        )
+        return redirect("facturacion:detalle_pedido", pedido_id=pedido_id)
+
+    if pedido.factura_generada:
+        messages.warning(
+            request,
+            f"El pedido {pedido.pk} ya tiene una factura generada.",
+        )
+        return redirect("facturacion:detalle", pk=pedido.factura_generada.pk)
+
+    # Preparar datos para la factura
+    cliente = pedido.cliente
+    lineas_pedido = pedido.lineas.all().select_related("producto")
+
+    # Preparar datos de factura
+    datos_factura = {
+        "fecha": date.today(),
+        "cliente_nombre": cliente.nombre_empresa,
+        "cliente_ruc": cliente.ruc,
+        "mostrar_ruc": True,
+        "cliente_direccion": cliente.direccion or "",
+        "cliente_telefono": cliente.telefono or "",
+        "cliente_correo": cliente.email_contacto or "",
+        "condicion_pago": Factura.CONDICION_CREDITO,  # Pedidos B2B suelen ser a crédito
+        "notas": pedido.notas or "",
+        "itbms_activo": True,
+    }
+
+    # Preparar líneas
+    lineas = []
+    for linea_pedido in lineas_pedido:
+        producto = linea_pedido.producto
+
+        # Determinar cómo cobrar: si hay cajas, cobrar por caja
+        if linea_pedido.cantidad_cajas > CERO:
+            cobrar_por = servicio_totales.COBRAR_POR_CAJA
+            cantidad = linea_pedido.cantidad_cajas
+        else:
+            cobrar_por = servicio_totales.COBRAR_POR_UNIDAD
+            cantidad = linea_pedido.cantidad_unidades
+
+        lineas.append({
+            "descripcion": producto.nombre,
+            "codigo_barras": producto.sku,
+            "categoria": producto.categoria.nombre if producto.categoria else "",
+            "cantidad": cantidad,
+            "precio_unitario": producto.precio_caja,
+            "descuento_pct": CERO,
+            "gravada": producto.aplica_itbms,
+            "unidades_por_caja": producto.unidades_por_caja,
+            "cobrar_por": cobrar_por,
+        })
+
+    # Crear la factura usando el servicio existente
+    factura = servicio_serie.crear_factura(datos_factura, lineas)
+
+    # Relacionar las líneas de factura con los productos del catálogo
+    for linea_factura, linea_pedido in zip(factura.lineas.all(), lineas_pedido):
+        linea_factura.producto = linea_pedido.producto
+        linea_factura.save(update_fields=["producto"])
+
+    # Actualizar el pedido
+    pedido.estado = PedidoB2B.ESTADO_FACTURADO
+    pedido.factura_generada = factura
+    pedido.save(update_fields=["estado", "factura_generada"])
+
+    messages.success(
+        request,
+        f"Pedido {pedido.pk} convertido a factura {factura.numero_serie} exitosamente.",
+    )
+
+    return redirect("facturacion:detalle", pk=factura.pk)

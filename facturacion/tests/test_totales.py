@@ -46,6 +46,26 @@ class PruebasMontosDeLinea(SimpleTestCase):
         # 0.1 + 0.2 en float da 0.30000000000000004; con Decimal no.
         self.assertEqual(monto_linea(0.1, 3), D("0.30"))
 
+    def test_precio_unidad_directo_sin_dividir(self):
+        # Si se proporciona precio_unidad, se usa directamente (para tiendas pequeñas)
+        monto = monto_linea(D("5"), D("10"), D("0"), 1, COBRAR_POR_UNIDAD, D("2.50"))
+        self.assertEqual(monto, D("12.50"))  # 5 x 2.50
+
+    def test_precio_unidad_tiene_prioridad_sobre_division(self):
+        # precio_unidad tiene prioridad (no divide precio_caja)
+        monto = monto_linea(D("2"), D("24"), D("0"), 1, COBRAR_POR_UNIDAD, D("3.00"))
+        self.assertEqual(monto, D("6.00"))  # 2 x 3.00 (no 2 x 24/1 = 48.00)
+
+    def test_cobrar_por_caja_usa_precio_caja_completo(self):
+        # caja usa precio_caja completo
+        monto = monto_linea(D("2"), D("30"), D("0"), 1, COBRAR_POR_CAJA, D("1.25"))
+        self.assertEqual(monto, D("60.00"))  # 2 x 30 (ignora precio_unidad)
+
+    def test_sin_precio_unidad_usa_precio_caja_como_unitario(self):
+        # Si no hay precio_unidad, usa precio_caja como precio por unidad
+        monto = monto_linea(D("3"), D("5"), D("0"), 1, COBRAR_POR_UNIDAD)
+        self.assertEqual(monto, D("15.00"))  # 3 x 5
+
     def test_redondear_usa_dos_decimales(self):
         self.assertEqual(redondear("12.345"), D("12.35"))
         self.assertEqual(redondear(D("10")), D("10.00"))
@@ -151,21 +171,23 @@ class PruebasCobroPorCajaYUnidad(SimpleTestCase):
         self.assertEqual(precio_por_unidad(self.CAJA_3, 3), D("3.333333333333333333333333333"))
 
     def test_precio_efectivo_por_unidad_y_por_caja(self):
+        # Nueva lógica: unidad usa precio_caja como precio_unitario (sin dividir)
         self.assertEqual(
-            precio_efectivo(self.CAJA_24, 24, COBRAR_POR_UNIDAD), D("1.25")
+            precio_efectivo(self.CAJA_24, 24, COBRAR_POR_UNIDAD), D("30.00")
         )
         self.assertEqual(
             precio_efectivo(self.CAJA_24, 24, COBRAR_POR_CAJA), D("30.00")
         )
 
     def test_ejemplos_del_cliente_caja_de_24(self):
-        # 12 und -> 12 x 30 / 24 = 15.00
+        # Nueva lógica: unidad usa precio_caja directamente (para tiendas pequeñas)
+        # 12 und -> 12 x 30 = 360.00 (precio_caja tratado como precio_unitario)
         self.assertEqual(
-            monto_linea(D("12"), self.CAJA_24, unidades_por_caja=24), D("15.00")
+            monto_linea(D("12"), self.CAJA_24, unidades_por_caja=24), D("360.00")
         )
-        # 24 und -> 24 x 30 / 24 = 30.00
+        # 24 und -> 24 x 30 = 720.00
         self.assertEqual(
-            monto_linea(D("24"), self.CAJA_24, unidades_por_caja=24), D("30.00")
+            monto_linea(D("24"), self.CAJA_24, unidades_por_caja=24), D("720.00")
         )
         # 1 caja -> 1 x 30 = 30.00
         self.assertEqual(
@@ -179,15 +201,15 @@ class PruebasCobroPorCajaYUnidad(SimpleTestCase):
                         cobrar_por=COBRAR_POR_CAJA),
             D("60.00"),
         )
-        # 30 und -> 30 x 30 / 24 = 37.50
+        # 30 und -> 30 x 30 = 900.00
         self.assertEqual(
-            monto_linea(D("30"), self.CAJA_24, unidades_por_caja=24), D("37.50")
+            monto_linea(D("30"), self.CAJA_24, unidades_por_caja=24), D("900.00")
         )
 
     def test_caja_que_no_divide_exacto_redondea_una_sola_vez(self):
-        # 5 und de una caja de 3 a 10.00 -> 16.666... -> 16.67
+        # Nueva lógica: 5 und a 10.00 (precio_unitario) -> 5 x 10 = 50.00
         self.assertEqual(
-            monto_linea(D("5"), self.CAJA_3, unidades_por_caja=3), D("16.67")
+            monto_linea(D("5"), self.CAJA_3, unidades_por_caja=3), D("50.00")
         )
 
     def test_calcular_linea_guarda_los_datos_de_la_caja(self):
@@ -195,12 +217,13 @@ class PruebasCobroPorCajaYUnidad(SimpleTestCase):
             D("12"), self.CAJA_24, unidades_por_caja=24,
             cobrar_por=COBRAR_POR_UNIDAD,
         )
-        self.assertEqual(linea.monto, D("15.00"))
+        # Nueva lógica: 12 x 30 = 360.00 (precio_caja como precio_unitario)
+        self.assertEqual(linea.monto, D("360.00"))
         self.assertEqual(linea.unidades_por_caja, 24)
         self.assertEqual(linea.cobrar_por, COBRAR_POR_UNIDAD)
-        self.assertEqual(linea.precio_para_mostrar, D("1.25"))
+        self.assertEqual(linea.precio_para_mostrar, D("30.00"))
         # El bruto es el precio mostrado por la cantidad, sin redondear.
-        self.assertEqual(linea.bruto, D("15.00"))
+        self.assertEqual(linea.bruto, D("360.00"))
 
     def test_calcular_totales_respeta_caja_y_unidad_de_cada_item(self):
         lineas = [
@@ -212,9 +235,10 @@ class PruebasCobroPorCajaYUnidad(SimpleTestCase):
              "unidades_por_caja": 24, "cobrar_por": COBRAR_POR_CAJA},
         ]
         totales = calcular_totales(lineas)
-        self.assertEqual(totales.lineas[0].monto, D("15.00"))
+        # Nueva lógica: 12 x 30 = 360.00 (unidad usa precio_caja como precio_unitario)
+        self.assertEqual(totales.lineas[0].monto, D("360.00"))
         self.assertEqual(totales.lineas[1].monto, D("60.00"))
-        self.assertEqual(totales.subtotal, D("75.00"))
+        self.assertEqual(totales.subtotal, D("420.00"))
         # La invariante sigue cuadrando al centavo.
         self.assertEqual(
             totales.subtotal - totales.descuento_total,

@@ -823,11 +823,11 @@ class PruebaCajaYUnidadEnPdf(TestCase):
         texto = utiles_pdf.texto_de_pagina(
             generar_pdf(factura, self.configuracion), 0
         )
-        # 12 x 12.00 / 24 = 6.00
-        self.assertIn("12.00 und", texto)
-        self.assertIn("0.50 / und", texto)
+        # Nueva lógica: 12 x 12.00 = 144.00 (precio_unitario directo)
+        self.assertIn("12 und", texto)
+        self.assertIn("12.00 / und", texto)
         self.assertIn("Caja de 24 und", texto)
-        self.assertIn("6.00", texto)
+        self.assertIn("144.00", texto)
 
     def test_por_caja_imprime_cajas_y_precio_de_la_caja(self):
         factura = crear_factura(
@@ -846,7 +846,7 @@ class PruebaCajaYUnidadEnPdf(TestCase):
             generar_pdf(factura, self.configuracion), 0
         )
         # 2 cajas x 30.00 = 60.00
-        self.assertIn("2.00 cajas", texto)
+        self.assertIn("2 cajas", texto)
         self.assertIn("30.00 / caja", texto)
         self.assertIn("Caja de 100 und", texto)
         self.assertIn("60.00", texto)
@@ -867,7 +867,7 @@ class PruebaCajaYUnidadEnPdf(TestCase):
         texto = utiles_pdf.texto_de_pagina(
             generar_pdf(factura, self.configuracion), 0
         )
-        self.assertIn("1.00 caja", texto)
+        self.assertIn("1 caja", texto)
 
     def test_factura_mixta_de_40_lineas_sin_solapes(self):
         """Mezcla unidades y cajas: el PDF no se monta por el detalle extra."""
@@ -911,7 +911,8 @@ class PruebaCajaYUnidadEnPdf(TestCase):
         self.assertIn("Caja de 100 und", todos)
         self.assertIn("Caja de 24 und", todos)
         self.assertIn("30.00 / caja", todos)
-        self.assertIn("0.50 / und", todos)
+        # Nueva lógica: usa precio_unitario directo (12.00, no 0.50)
+        self.assertIn("12.00 / und", todos)
 
         for indice in range(len(paginas)):
             solapes = utiles_pdf.solapamientos(contenido, indice)

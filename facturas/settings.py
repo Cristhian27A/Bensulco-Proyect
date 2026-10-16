@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "facturacion",
+    "catalogo",
 ]
 
 MIDDLEWARE = [
@@ -116,6 +117,11 @@ FACTURA_DECIMALES = 2
 
 # Valor predeterminado de la empresa en el PDF (se puede cambiar en Configuracion).
 FACTURA_COLOR_PREDETERMINADA = "#3A0088"
+
+# Configuracion de autenticacion
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "facturacion:nueva"
+LOGOUT_REDIRECT_URL = "login"
 
 LOGGING = {
     "version": 1,

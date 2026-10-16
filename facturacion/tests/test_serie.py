@@ -353,9 +353,9 @@ class PruebasCajaYUnidadAlGuardar(TestCase):
         linea = factura.lineas.get()
         self.assertEqual(linea.unidades_por_caja, 24)
         self.assertEqual(linea.cobrar_por, COBRAR_POR_UNIDAD)
-        # 12 x 12.00 / 24 = 6.00
-        self.assertEqual(linea.monto, D("6.00"))
-        self.assertEqual(factura.total, D("6.42"))
+        # Nueva lógica: 12 x 12.00 = 144.00 (precio_unitario directo)
+        self.assertEqual(linea.monto, D("144.00"))
+        self.assertEqual(factura.total, D("154.08"))
 
     def test_sin_datos_de_caja_queda_por_unidad_y_sin_dividir(self):
         factura = crear_factura(datos_cliente(), lineas_de_ejemplo())

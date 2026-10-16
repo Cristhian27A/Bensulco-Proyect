@@ -244,18 +244,31 @@ def _escapar(texto) -> str:
 
 
 def _cantidad_con_unidades(linea) -> str:
-    """"12.00 und" si se cobra por unidad, "1.00 caja" / "2.00 cajas" si por caja."""
+    """"12 und" si se cobra por unidad, "1 caja" / "2 cajas" si por caja."""
+    # Formatear sin decimales si es entero
+    cantidad = Decimal(linea.cantidad)
+    if cantidad == cantidad.to_integral_value():
+        cantidad_str = str(int(cantidad))
+    else:
+        cantidad_str = _dinero(linea.cantidad)
+    
     if linea.cobrar_por == COBRAR_POR_CAJA:
-        palabra = "caja" if Decimal(linea.cantidad) == 1 else "cajas"
-        return f"{_dinero(linea.cantidad)} {palabra}"
-    return f"{_dinero(linea.cantidad)} und"
+        palabra = "caja" if cantidad == 1 else "cajas"
+        return f"{cantidad_str} {palabra}"
+    return f"{cantidad_str} und"
 
 
 def _precio_para_mostrar(linea) -> str:
     """Precio efectivo con su unidad: "1.25 / und" o "30.00 / caja"."""
-    precio = precio_efectivo(
-        linea.precio_unitario, linea.unidades_por_caja, linea.cobrar_por
-    )
+    # Si cobrar_por es "unidad" y existe precio_unidad, usarlo directamente
+    if linea.cobrar_por != COBRAR_POR_CAJA and linea.precio_unidad and linea.precio_unidad > 0:
+        precio = linea.precio_unidad
+    else:
+        # Usar precio_efectivo para el cálculo normal (caja o unidad sin precio_unidad)
+        precio = precio_efectivo(
+            linea.precio_unitario, linea.unidades_por_caja, linea.cobrar_por,
+            precio_unidad=linea.precio_unidad if linea.cobrar_por != COBRAR_POR_CAJA else None
+        )
     sufijo = " / caja" if linea.cobrar_por == COBRAR_POR_CAJA else " / und"
     return f"{formato_precio(precio)} {sufijo}".rstrip()
 
@@ -659,7 +672,7 @@ def _celda_producto(linea, estilos):
     return Paragraph(texto, estilos["producto"])
 
 
-def _tabla_productos(factura, estilos, morado):
+def _tabla_productos(factura, estilos, morado, lineas=None):
     encabezados = [
         Paragraph("N.º", estilos["encabezado_tabla"]),
         Paragraph("Producto", estilos["encabezado_tabla"]),
@@ -668,7 +681,8 @@ def _tabla_productos(factura, estilos, morado):
         Paragraph("Monto", estilos["encabezado_tabla_dinero"]),
     ]
     filas = [encabezados]
-    for linea in factura.lineas.all():
+    lineas_a_usar = lineas if lineas is not None else factura.lineas.all()
+    for linea in lineas_a_usar:
         filas.append([
             Paragraph(str(linea.orden), estilos["celda_numero"]),
             _celda_producto(linea, estilos),
@@ -928,8 +942,14 @@ class PlantillaFactura(BaseDocTemplate):
         _dibujar_marca_agua(lienzo, doc)
 
 
-def generar_pdf(factura, configuracion=None) -> bytes:
-    """Devuelve los bytes del PDF de la factura."""
+def generar_pdf(factura, configuracion=None, lineas=None) -> bytes:
+    """Devuelve los bytes del PDF de la factura.
+
+    Args:
+        factura: Objeto Factura (o objeto similar con los mismos atributos)
+        configuracion: Objeto ConfiguracionNegocio (opcional, se carga si no se pasa)
+        lineas: Lista de líneas (opcional, usa factura.lineas.all() si no se pasa)
+    """
     if configuracion is None:
         from facturacion.models import ConfiguracionNegocio
 
@@ -940,7 +960,7 @@ def generar_pdf(factura, configuracion=None) -> bytes:
 
     historia = [
         NextPageTemplate("siguiente"),
-        _tabla_productos(factura, documento.estilos, documento.morado),
+        _tabla_productos(factura, documento.estilos, documento.morado, lineas=lineas),
     ]
     # El bloque final va entero en una sola pagina: si no cabe en la que
     # termino la tabla, pasa completa a la siguiente.
