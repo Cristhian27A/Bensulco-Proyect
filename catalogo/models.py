@@ -46,9 +46,18 @@ class Producto(models.Model):
         unique=True,
         help_text="Código único de identificación del producto",
     )
+    codigo_barras = models.CharField(
+        "Código de barras",
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Código de barras del producto (ej: 7 595288 003148)",
+    )
     descripcion_corta = models.CharField(
         "Descripción corta",
         max_length=500,
+        blank=True,
+        null=True,
         help_text="Descripción breve para mostrar en el catálogo",
     )
     imagen = models.ImageField(
@@ -65,12 +74,34 @@ class Producto(models.Model):
         validators=[MinValueValidator(CERO)],
         help_text="Precio de la caja completa",
     )
+    precio_media_caja = models.DecimalField(
+        "Precio por media caja",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(CERO)],
+        help_text="Precio de la media caja (opcional, si no se especifica usa la mitad del precio de caja)",
+    )
+    permite_media_caja = models.BooleanField(
+        "¿Permite venta por media caja?",
+        default=False,
+        help_text="Si se activa, permite la venta de media caja en el catálogo público",
+    )
     precio_unidad = models.DecimalField(
         "Precio por unidad",
         max_digits=14,
         decimal_places=2,
         validators=[MinValueValidator(CERO)],
         help_text="Precio de una unidad suelta",
+    )
+    precio_consumidor = models.DecimalField(
+        "Precio sugerido al consumidor",
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Precio sugerido de venta al consumidor final",
     )
     unidades_por_caja = models.PositiveIntegerField(
         "Unidades por caja",
@@ -104,8 +135,15 @@ class Producto(models.Model):
     def precio_efectivo_por_unidad(self):
         """Precio por unidad calculado (precio_caja / unidades_por_caja)."""
         if self.unidades_por_caja > 0:
-            return self.precio_caja / self.unidades_por_caja
+            return self.precio_caja / Decimal(self.unidades_por_caja)
         return self.precio_unidad
+
+    @property
+    def precio_media_caja_efectivo(self):
+        """Precio de media caja (usa precio_media_caja si existe, o la mitad de precio_caja)."""
+        if self.precio_media_caja is not None and self.precio_media_caja > CERO:
+            return self.precio_media_caja
+        return self.precio_caja / Decimal("2")
 
 
 class ClienteB2B(models.Model):
@@ -194,6 +232,16 @@ class PedidoB2B(models.Model):
 class LineaPedidoB2B(models.Model):
     """Una línea de producto dentro de un pedido B2B."""
 
+    TIPO_CAJA = "caja"
+    TIPO_MEDIA_CAJA = "media_caja"
+    TIPO_UNIDAD = "unidad"
+
+    TIPO_EMPAQUE_OPCIONES = [
+        (TIPO_CAJA, "Caja"),
+        (TIPO_MEDIA_CAJA, "Media Caja"),
+        (TIPO_UNIDAD, "Unidad"),
+    ]
+
     pedido = models.ForeignKey(
         PedidoB2B,
         on_delete=models.CASCADE,
@@ -206,19 +254,20 @@ class LineaPedidoB2B(models.Model):
         verbose_name="Producto",
         related_name="lineas_pedido",
     )
-    cantidad_cajas = models.DecimalField(
-        "Cantidad en cajas",
-        max_digits=14,
-        decimal_places=2,
-        default=CERO,
-        validators=[MinValueValidator(CERO)],
+    tipo_empaque = models.CharField(
+        "Tipo de empaque",
+        max_length=20,
+        choices=TIPO_EMPAQUE_OPCIONES,
+        default=TIPO_CAJA,
+        help_text="Cómo se facturará este producto",
     )
-    cantidad_unidades = models.DecimalField(
-        "Cantidad en unidades",
+    cantidad = models.DecimalField(
+        "Cantidad",
         max_digits=14,
         decimal_places=2,
         default=CERO,
         validators=[MinValueValidator(CERO)],
+        help_text="Cantidad según el tipo de empaque seleccionado",
     )
     subtotal = models.DecimalField(
         "Subtotal",
@@ -243,14 +292,21 @@ class LineaPedidoB2B(models.Model):
 
     @property
     def cantidad_total_unidades(self):
-        """Total de unidades sumando cajas y unidades sueltas."""
-        return self.cantidad_unidades + (self.cantidad_cajas * self.producto.unidades_por_caja)
+        """Total de unidades según el tipo de empaque."""
+        if self.tipo_empaque == self.TIPO_CAJA:
+            return self.cantidad * self.producto.unidades_por_caja
+        elif self.tipo_empaque == self.TIPO_MEDIA_CAJA:
+            return self.cantidad * (self.producto.unidades_por_caja / Decimal("2"))
+        else:  # unidad
+            return self.cantidad
 
     def calcular_subtotal(self):
-        """Calcula el subtotal de la línea basado en el precio del producto."""
-        # Subtotal = (cajas * precio_caja) + (unidades * precio_unidad)
-        subtotal_cajas = self.cantidad_cajas * self.producto.precio_caja
-        subtotal_unidades = self.cantidad_unidades * self.producto.precio_unidad
-        self.subtotal = subtotal_cajas + subtotal_unidades
+        """Calcula el subtotal de la línea basado en el tipo de empaque."""
+        if self.tipo_empaque == self.TIPO_CAJA:
+            self.subtotal = self.cantidad * self.producto.precio_caja
+        elif self.tipo_empaque == self.TIPO_MEDIA_CAJA:
+            self.subtotal = self.cantidad * self.producto.precio_media_caja_efectivo
+        else:  # unidad
+            self.subtotal = self.cantidad * self.producto.precio_unidad
         self.save(update_fields=["subtotal"])
         return self.subtotal

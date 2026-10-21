@@ -119,11 +119,11 @@
                             <div class="sub-caja">
                                 <span class="sub-caja-etiqueta">
                                     Código
-                                    <input type="text" name="{{ form_linea.prefix }}-codigo_barras" value="{{ form_linea.codigo_barras.value|default_if_none:'' }}" class="campo campo-pequeno" placeholder="Código">
+                                    <input type="text" name="{{ form_linea.prefix }}-codigo_barras" value="{{ form_linea.codigo_barras.value|default_if_none:'' }}" class="campo campo-pequeno campo-codigo-barras" placeholder="Código">
                                 </span>
                                 <span class="sub-caja-etiqueta">
                                     Caja de
-                                    <input type="number" min="1" step="1" name="{{ form_linea.prefix }}-unidades_por_caja" value="{{ form_linea.unidades_por_caja.value|default_if_none:1 }}" class="campo campo-cajaund js-upxc">
+                                    <input type="number" min="1" step="1" name="{{ form_linea.prefix }}-unidades_por_caja" value="{{ form_linea.unidades_por_caja.value|default_if_none:1 }}" class="campo campo-cajaund js-upxc campo-unidades-caja">
                                     und
                                 </span>
                                 <span class="sub-caja-etiqueta">
@@ -139,8 +139,8 @@
                         </td>
                         <td class="col-cantidad"><input type="number" step="0.01" min="0" name="{{ form_linea.prefix }}-cantidad" value="{{ form_linea.cantidad.value|default_if_none:'' }}" class="campo campo-numero js-cantidad"></td>
                         <td class="col-precio">
-                            <input type="number" step="0.01" min="0" name="{{ form_linea.prefix }}-precio_unitario" value="{{ form_linea.precio_unitario.value|default_if_none:'' }}" class="campo campo-numero js-precio" placeholder="Caja">
-                            <input type="number" step="0.01" min="0" name="{{ form_linea.prefix }}-precio_unidad" value="{{ form_linea.precio_unidad.value|default_if_none:'' }}" class="campo campo-numero js-precio-unidad" placeholder="Unidad" style="margin-top: 5px;">
+                            <input type="number" step="0.01" min="0" name="{{ form_linea.prefix }}-precio_unitario" value="{{ form_linea.precio_unitario.value|default_if_none:'' }}" class="campo campo-numero js-precio campo-precio-caja" placeholder="Caja">
+                            <input type="number" step="0.01" min="0" name="{{ form_linea.prefix }}-precio_unidad" value="{{ form_linea.precio_unidad.value|default_if_none:'' }}" class="campo campo-numero js-precio-unidad campo-precio-unidad" placeholder="Unidad" style="margin-top: 5px;">
                         </td>
                         <td class="col-monto"><span class="monto-fila js-monto">0.00</span><br><span class="precio-efectivo js-precio-efectivo"></span></td>
                         <td class="col-gravada"><input type="checkbox" name="{{ form_linea.prefix }}-gravada" class="js-gravada" {% if form_linea.gravada.value %}checked{% endif %}></td>
@@ -194,11 +194,11 @@
             <div class="sub-caja">
                 <span class="sub-caja-etiqueta">
                     Código
-                    <input type="text" name="__PREFIX__-codigo_barras" class="campo campo-pequeno" placeholder="Código">
+                    <input type="text" name="__PREFIX__-codigo_barras" class="campo campo-pequeno campo-codigo-barras" placeholder="Código">
                 </span>
                 <span class="sub-caja-etiqueta">
                     Caja de
-                    <input type="number" min="1" step="1" name="__PREFIX__-unidades_por_caja" value="1" class="campo campo-cajaund js-upxc">
+                    <input type="number" min="1" step="1" name="__PREFIX__-unidades_por_caja" value="1" class="campo campo-cajaund js-upxc campo-unidades-caja">
                     und
                 </span>
                 <span class="sub-caja-etiqueta">
@@ -213,8 +213,8 @@
         </td>
         <td class="col-cantidad"><input type="number" step="0.01" min="0" name="__PREFIX__-cantidad" class="campo campo-numero js-cantidad"></td>
         <td class="col-precio">
-            <input type="number" step="0.01" min="0" name="__PREFIX__-precio_unitario" class="campo campo-numero js-precio" placeholder="Caja">
-            <input type="number" step="0.01" min="0" name="__PREFIX__-precio_unidad" class="campo campo-numero js-precio-unidad" placeholder="Unidad" style="margin-top: 5px;">
+            <input type="number" step="0.01" min="0" name="__PREFIX__-precio_unitario" class="campo campo-numero js-precio campo-precio-caja" placeholder="Caja">
+            <input type="number" step="0.01" min="0" name="__PREFIX__-precio_unidad" class="campo campo-numero js-precio-unidad campo-precio-unidad" placeholder="Unidad" style="margin-top: 5px;">
         </td>
         <td class="col-monto"><span class="monto-fila js-monto">0.00</span><br><span class="precio-efectivo js-precio-efectivo"></span></td>
         <td class="col-gravada"><input type="checkbox" name="__PREFIX__-gravada" class="js-gravada" checked></td>

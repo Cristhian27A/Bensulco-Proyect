@@ -36,8 +36,9 @@
                 <tr>
                     <th>Producto</th>
                     <th>SKU</th>
-                    <th>Cajas</th>
-                    <th>Unidades</th>
+                    <th>Tipo</th>
+                    <th>Cantidad</th>
+                    <th>Unidades Eq.</th>
                     <th>Subtotal</th>
                 </tr>
             </thead>
@@ -51,15 +52,16 @@
                         {% endif %}
                     </td>
                     <td>{{ linea.producto.sku }}</td>
-                    <td>{{ linea.cantidad_cajas }}</td>
-                    <td>{{ linea.cantidad_unidades }}</td>
+                    <td>{{ linea.get_tipo_empaque_display }}</td>
+                    <td>{{ linea.cantidad }}</td>
+                    <td>{{ linea.cantidad_total_unidades }}</td>
                     <td><strong>${{ linea.subtotal|floatformat:2 }}</strong></td>
                 </tr>
                 {% endfor %}
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="4"><strong>Total:</strong></td>
+                    <td colspan="5"><strong>Total:</strong></td>
                     <td><strong>${{ pedido.total_estimado|floatformat:2 }}</strong></td>
                 </tr>
             </tfoot>

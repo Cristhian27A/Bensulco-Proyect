@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -13,6 +14,8 @@ from facturacion.services.pdf import generar_pdf
 from facturacion.services.numero_a_letras import total_en_letras
 
 CERO = Decimal("0.00")
+UNO = Decimal("1")
+DOS = Decimal("2")
 
 
 def catalogo_publico(request):
@@ -61,8 +64,8 @@ def agregar_al_carrito(request):
         return redirect("catalogo:catalogo")
 
     producto_id = request.POST.get("producto_id")
-    cantidad_cajas = Decimal(request.POST.get("cantidad_cajas", "0"))
-    cantidad_unidades = Decimal(request.POST.get("cantidad_unidades", "0"))
+    tipo_empaque = request.POST.get("tipo_empaque", "caja")  # caja, media_caja, unidad
+    cantidad = Decimal(request.POST.get("cantidad", "0"))
 
     if not producto_id:
         messages.error(request, "Producto no válido.")
@@ -70,28 +73,36 @@ def agregar_al_carrito(request):
 
     producto = get_object_or_404(Producto, pk=producto_id, estado_activo=True)
 
-    if cantidad_cajas <= CERO and cantidad_unidades <= CERO:
+    if cantidad <= CERO:
         messages.error(request, "Debe agregar al menos una cantidad.")
         return redirect("catalogo:catalogo")
 
+    # Calcular subtotal según el tipo de empaque
+    if tipo_empaque == "caja":
+        subtotal = cantidad * producto.precio_caja
+        unidades_equivalentes = cantidad * producto.unidades_por_caja
+    elif tipo_empaque == "media_caja":
+        subtotal = cantidad * producto.precio_media_caja_efectivo
+        unidades_equivalentes = cantidad * (producto.unidades_por_caja / DOS)
+    else:  # unidad
+        subtotal = cantidad * producto.precio_unidad
+        unidades_equivalentes = cantidad
+
     # Obtener o crear el carrito en la sesión
     carrito = request.session.get("carrito", {})
-
-    # Calcular subtotal
-    subtotal = (cantidad_cajas * producto.precio_caja) + (
-        cantidad_unidades * producto.precio_unidad
-    )
 
     # Agregar al carrito
     carrito[str(producto_id)] = {
         "producto_id": producto_id,
         "nombre": producto.nombre,
         "sku": producto.sku,
-        "cantidad_cajas": str(cantidad_cajas),
-        "cantidad_unidades": str(cantidad_unidades),
+        "tipo_empaque": tipo_empaque,
+        "cantidad": str(cantidad),
         "precio_caja": str(producto.precio_caja),
+        "precio_media_caja": str(producto.precio_media_caja_efectivo),
         "precio_unidad": str(producto.precio_unidad),
         "unidades_por_caja": producto.unidades_por_caja,
+        "unidades_equivalentes": str(unidades_equivalentes),
         "subtotal": str(subtotal),
     }
 
@@ -180,15 +191,15 @@ def formulario_pedido(request):
                 # Crear las líneas del pedido
                 for orden, (prod_id, item) in enumerate(carrito.items(), start=1):
                     producto = Producto.objects.get(pk=prod_id)
-                    cantidad_cajas = Decimal(item["cantidad_cajas"])
-                    cantidad_unidades = Decimal(item["cantidad_unidades"])
+                    tipo_empaque = item["tipo_empaque"]
+                    cantidad = Decimal(item["cantidad"])
                     subtotal = Decimal(item["subtotal"])
 
                     LineaPedidoB2B.objects.create(
                         pedido=pedido,
                         producto=producto,
-                        cantidad_cajas=cantidad_cajas,
-                        cantidad_unidades=cantidad_unidades,
+                        tipo_empaque=tipo_empaque,
+                        cantidad=cantidad,
                         subtotal=subtotal,
                         orden=orden,
                     )
@@ -316,3 +327,40 @@ def pdf_pedido(request, pedido_id):
         "Content-Disposition"
     ] = f'attachment; filename="PED-{pedido.pk:04d}.pdf"'
     return respuesta
+
+
+def api_buscar_productos(request):
+    """API para buscar productos en tiempo real (autocompletado)."""
+    query = request.GET.get("q", "").strip()
+    
+    print(f"[API Buscar Productos] Query recibida: '{query}'")
+    
+    if not query or len(query) < 2:
+        print("[API Buscar Productos] Query vacía o muy corta, retornando vacío")
+        return JsonResponse({"results": []})
+    
+    productos = Producto.objects.filter(
+        estado_activo=True
+    ).filter(
+        Q(nombre__icontains=query) |
+        Q(sku__icontains=query) |
+        Q(codigo_barras__icontains=query)
+    ).select_related("categoria")[:10]
+    
+    print(f"[API Buscar Productos] {productos.count()} productos encontrados")
+    
+    results = []
+    for producto in productos:
+        results.append({
+            "id": producto.id,
+            "nombre": producto.nombre,
+            "sku": producto.sku,
+            "codigo_barras": producto.codigo_barras or "",
+            "precio_caja": str(producto.precio_caja),
+            "precio_unidad": str(producto.precio_unidad),
+            "unidades_por_caja": producto.unidades_por_caja,
+            "categoria": producto.categoria.nombre if producto.categoria else "",
+        })
+    
+    print(f"[API Buscar Productos] Enviando {len(results)} resultados")
+    return JsonResponse({"results": results})

@@ -1,6 +1,8 @@
 {% extends "catalogo/base.html" %}
 
-{% block titulo %}Catálogo de Productos{% endblock %}
+{% block titulo %}Catálogo de productos - Blixi{% endblock %}
+
+{% block header_title %}Catálogo de productos{% endblock %}
 
 {% block contenido %}
 <div class="filtros">
@@ -55,47 +57,101 @@
         {% endif %}
 
         <div class="producto-info">
-            <div class="producto-sku">{{ producto.sku }}</div>
+            {% if producto.codigo_barras %}
+            <div class="producto-codigo-barras">
+                <span class="barcode-icon">|||</span>
+                <span class="barcode-number">{{ producto.codigo_barras }}</span>
+            </div>
+            {% endif %}
             <h3 class="producto-nombre">{{ producto.nombre }}</h3>
+            {% if producto.descripcion_corta %}
             <p class="producto-descripcion">{{ producto.descripcion_corta }}</p>
+            {% endif %}
             <div class="producto-categoria">{{ producto.categoria.nombre }}</div>
 
+            {% if producto.categoria.nombre == "Media caja" %}
+            {# Visualización especial para productos de media caja #}
             <div class="producto-precios">
-                <div class="precio-item">
-                    <span class="precio-label">Caja:</span>
-                    <span class="precio-valor">${{ producto.precio_caja|floatformat:2 }}</span>
-                    <span class="precio-detalle">({{ producto.unidades_por_caja }} und)</span>
+                <div class="precio-item precio-destacado">
+                    <span class="precio-label">Media Caja</span>
+                    <div class="precio-valor-container">
+                        <span class="precio-valor">${{ producto.precio_media_caja|floatformat:2 }}</span>
+                        <span class="precio-detalle">({{ producto.unidades_por_caja }} und)</span>
+                    </div>
                 </div>
                 <div class="precio-item">
-                    <span class="precio-label">Unidad:</span>
-                    <span class="precio-valor">${{ producto.precio_unidad|floatformat:2 }}</span>
+                    <span class="precio-label">Unidad</span>
+                    <div class="precio-valor-container">
+                        <span class="precio-valor">${{ producto.precio_unidad|floatformat:2 }}</span>
+                    </div>
                 </div>
             </div>
+            {% else %}
+            {# Visualización estándar para productos normales #}
+            <div class="producto-precios">
+                <div class="precio-item">
+                    <span class="precio-label">Caja</span>
+                    <div class="precio-valor-container">
+                        <span class="precio-valor">${{ producto.precio_caja|floatformat:2 }}</span>
+                        <span class="precio-detalle">({{ producto.unidades_por_caja }} und)</span>
+                    </div>
+                </div>
+                {% if producto.permite_media_caja %}
+                <div class="precio-item">
+                    <span class="precio-label">Media Caja</span>
+                    <div class="precio-valor-container">
+                        <span class="precio-valor">${{ producto.precio_media_caja_efectivo|floatformat:2 }}</span>
+                        <span class="precio-detalle">({{ producto.unidades_por_caja|floatformat:0 }}/2 und)</span>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="precio-item">
+                    <span class="precio-label">Unidad</span>
+                    <div class="precio-valor-container">
+                        <span class="precio-valor">${{ producto.precio_unidad|floatformat:2 }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if producto.precio_consumidor %}
+            <div class="precio-consumidor">
+                <span class="precio-consumidor-label">Sugerido:</span>
+                <span class="precio-consumidor-valor">${{ producto.precio_consumidor|floatformat:2 }}</span>
+            </div>
+            {% endif %}
 
             <form method="post" action="{% url 'catalogo:agregar' %}" class="agregar-form">
                 {% csrf_token %}
                 <input type="hidden" name="producto_id" value="{{ producto.id }}">
 
                 <div class="cantidad-inputs">
-                    <div class="cantidad-group">
-                        <label for="cajas_{{ producto.id }}">Cajas:</label>
-                        <input type="number"
-                               name="cantidad_cajas"
-                               id="cajas_{{ producto.id }}"
-                               value="0"
-                               min="0"
-                               step="0.5"
-                               class="input-cantidad">
+                    <div class="cantidad-group caja-select">
+                        <label for="tipo_{{ producto.id }}">Empaque:</label>
+                        <select name="tipo_empaque" id="tipo_{{ producto.id }}" class="select-tipo">
+                            {% if producto.categoria.nombre == "Media caja" %}
+                            {# Para productos de media caja, priorizar media caja #}
+                            <option value="media_caja" selected>Media Caja</option>
+                            <option value="unidad">Unidad</option>
+                            {% else %}
+                            {# Para productos normales, comportamiento estándar #}
+                            <option value="caja">Caja</option>
+                            {% if producto.permite_media_caja %}
+                            <option value="media_caja">Media Caja</option>
+                            {% endif %}
+                            <option value="unidad">Unidad</option>
+                            {% endif %}
+                        </select>
                     </div>
 
                     <div class="cantidad-group">
-                        <label for="unidades_{{ producto.id }}">Unidades:</label>
+                        <label for="cantidad_{{ producto.id }}">Cantidad:</label>
                         <input type="number"
-                               name="cantidad_unidades"
-                               id="unidades_{{ producto.id }}"
-                               value="0"
-                               min="0"
-                               step="1"
+                               name="cantidad"
+                               id="cantidad_{{ producto.id }}"
+                               value="1"
+                               min="0.5"
+                               step="0.5"
                                class="input-cantidad">
                     </div>
                 </div>
@@ -207,10 +263,33 @@
         padding: 15px;
     }
 
-    .producto-sku {
+    .producto-codigo-barras {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        padding: 6px 10px;
+        background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+        border-radius: 6px;
+        border: 1px solid #d8b4fe;
+    }
+
+    .barcode-icon {
+        font-family: 'Courier New', monospace;
+        font-size: 18px;
+        font-weight: 900;
+        color: #6B21A8;
+        letter-spacing: 2px;
+        line-height: 1;
+    }
+
+    .barcode-number {
+        font-family: 'Courier New', monospace;
         font-size: 12px;
-        color: #666;
-        margin-bottom: 5px;
+        font-weight: 600;
+        color: #6B21A8;
+        letter-spacing: 1px;
+        white-space: nowrap;
     }
 
     .producto-nombre {
@@ -229,26 +308,28 @@
 
     .producto-categoria {
         display: inline-block;
-        background: #e9ecef;
-        padding: 4px 8px;
-        border-radius: 4px;
+        background: linear-gradient(135deg, #6B21A8 0%, #9333EA 100%);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
         font-size: 11px;
-        color: #495057;
+        font-weight: 500;
         margin-bottom: 12px;
     }
 
     .producto-precios {
-        background: #f8f9fa;
-        padding: 10px;
-        border-radius: 4px;
+        background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+        padding: 12px;
+        border-radius: 8px;
         margin-bottom: 12px;
+        border: 1px solid #e9d5ff;
     }
 
     .precio-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 5px;
+        margin-bottom: 8px;
         font-size: 14px;
     }
 
@@ -257,18 +338,63 @@
     }
 
     .precio-label {
-        color: #666;
-        font-weight: 500;
+        color: #6B21A8;
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    .precio-valor-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        text-align: right;
     }
 
     .precio-valor {
-        color: #3A0088;
-        font-weight: 600;
+        color: #6B21A8;
+        font-weight: 700;
+        font-size: 15px;
+    }
+
+    .precio-destacado .precio-valor {
+        color: #581c87;
+        font-weight: 800;
+        font-size: 17px;
+    }
+
+    .precio-destacado .precio-label {
+        color: #581c87;
+        font-weight: 700;
+        font-size: 14px;
     }
 
     .precio-detalle {
         font-size: 11px;
-        color: #999;
+        color: #9333EA;
+        font-weight: 500;
+    }
+
+    .precio-consumidor {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        border: 1px solid #fcd34d;
+    }
+
+    .precio-consumidor-label {
+        font-size: 12px;
+        color: #92400e;
+        font-weight: 600;
+    }
+
+    .precio-consumidor-valor {
+        font-size: 14px;
+        color: #92400e;
+        font-weight: 700;
     }
 
     .agregar-form {
@@ -285,6 +411,10 @@
         flex: 1;
     }
 
+    .cantidad-group.caja-select {
+        flex: 0 0 120px;
+    }
+
     .cantidad-group label {
         display: block;
         font-size: 12px;
@@ -298,6 +428,14 @@
         border: 1px solid #ddd;
         border-radius: 4px;
         font-size: 14px;
+    }
+
+    .select-tipo {
+        width: 100%;
+        padding: 6px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 13px;
     }
 
     .btn-full {

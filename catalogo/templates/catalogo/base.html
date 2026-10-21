@@ -15,27 +15,106 @@
         }
 
         .header-catalogo {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #581c87;
             color: white;
-            padding: 20px;
+            padding: 25px 30px;
+            box-shadow: 0 4px 20px rgba(88, 28, 135, 0.4);
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1400px;
+            margin: 0 auto;
+            gap: 25px;
+            padding: 10px 0;
+        }
+
+        .header-logo {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+        }
+
+        .header-logo img {
+            height: 80px;
+            max-height: 80px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .header-logo.bensulco img {
+            filter: drop-shadow(0px 2px 4px rgba(255, 255, 255, 0.3));
+            mix-blend-mode: multiply;
+        }
+
+        .header-logo.blixi img {
+            filter: drop-shadow(0px 2px 4px rgba(255, 255, 255, 0.2));
+            mix-blend-mode: screen;
+        }
+
+        .header-center {
+            flex: 1;
             text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
-        .header-catalogo h1 {
+        .header-center h1 {
             margin: 0;
-            font-size: 24px;
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: white;
         }
 
-        .header-catalogo .nav-links {
-            margin-top: 15px;
+        .header-center .subtitulo {
+            margin: 4px 0 0 0;
+            font-size: 14px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.9);
+            letter-spacing: 0.3px;
         }
 
-        .header-catalogo a {
+        .header-right {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-nav {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-nav a {
             color: white;
             text-decoration: none;
-            margin: 0 10px;
             font-weight: 500;
+            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: background 0.3s;
+        }
+
+        .header-nav a:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .header-nav .cart-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .header-nav .cart-badge:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .container {
@@ -116,9 +195,68 @@
             font-size: 12px;
         }
 
+        @media (max-width: 1024px) {
+            .header-content {
+                padding: 5px 20px;
+            }
+
+            .header-logo img {
+                height: 70px;
+                max-height: 70px;
+            }
+
+            .header-center h1 {
+                font-size: 22px;
+            }
+
+            .header-center .subtitulo {
+                font-size: 13px;
+            }
+        }
+
         @media (max-width: 768px) {
-            .header-catalogo h1 {
+            .header-catalogo {
+                padding: 20px 15px;
+            }
+
+            .header-content {
+                flex-direction: column;
+                padding: 10px;
+                gap: 15px;
+            }
+
+            .header-logo {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .header-logo img {
+                height: 60px;
+                max-height: 60px;
+            }
+
+            .header-center {
+                order: -1;
+            }
+
+            .header-center h1 {
                 font-size: 20px;
+            }
+
+            .header-center .subtitulo {
+                font-size: 12px;
+            }
+
+            .header-right {
+                width: 100%;
+                justify-content: center;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .header-nav {
+                width: 100%;
+                justify-content: center;
             }
 
             .container {
@@ -129,14 +267,29 @@
 </head>
 <body>
     <header class="header-catalogo">
-        <h1>{% block header_title %}Catálogo de Productos{% endblock %}</h1>
-        <div class="nav-links">
-            <a href="{% url 'catalogo:catalogo' %}">Catálogo</a>
-            {% if request.session.carrito %}
-                <a href="{% url 'catalogo:formulario_pedido' %}">
-                    🛒 Carrito ({{ request.session.carrito|length }})
-                </a>
-            {% endif %}
+        <div class="header-content">
+            <div class="header-logo bensulco">
+                <img src="{% static 'catalogo/images/bensulco-logo.png' %}?v=2" alt="Bensulco Distribution" onerror="this.style.display='none'">
+            </div>
+            
+            <div class="header-center">
+                <h1>{% block header_title %}Catálogo de Productos{% endblock %}</h1>
+                <div class="subtitulo">Bensulco Distribution & Blixi</div>
+            </div>
+            
+            <div class="header-right">
+                <div class="header-logo blixi">
+                    <img src="{% static 'catalogo/images/blixi-logo.png' %}?v=2" alt="Blixi" onerror="this.style.display='none'">
+                </div>
+                <nav class="header-nav">
+                    <a href="{% url 'catalogo:catalogo' %}">Catálogo</a>
+                    {% if request.session.carrito %}
+                        <a href="{% url 'catalogo:formulario_pedido' %}" class="cart-badge">
+                            🛒 Carrito ({{ request.session.carrito|length }})
+                        </a>
+                    {% endif %}
+                </nav>
+            </div>
         </div>
     </header>
 

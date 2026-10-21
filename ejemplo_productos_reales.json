@@ -1,0 +1,28 @@
+[
+    {
+        "categoria": "Bolsas Herméticas",
+        "nombre": "Bolsa Hermética 8x10",
+        "sku": "BH-001",
+        "codigo_barras": "7 595288 003148",
+        "descripcion_corta": "Bolsa hermética 8x10 pulgadas",
+        "precio_caja": "45.00",
+        "precio_media_caja": "22.50",
+        "precio_unidad": "0.75",
+        "unidades_por_caja": 60,
+        "permite_media_caja": true,
+        "aplica_itbms": true
+    },
+    {
+        "categoria": "Bolsas Herméticas",
+        "nombre": "Bolsa Hermética 10x12",
+        "sku": "BH-002",
+        "codigo_barras": "7 595288 003149",
+        "descripcion_corta": "Bolsa hermética 10x12 pulgadas",
+        "precio_caja": "52.00",
+        "precio_media_caja": "26.00",
+        "precio_unidad": "0.87",
+        "unidades_por_caja": 60,
+        "permite_media_caja": true,
+        "aplica_itbms": true
+    }
+]

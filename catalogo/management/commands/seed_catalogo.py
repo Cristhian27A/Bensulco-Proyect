@@ -11,7 +11,7 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from catalogo.models import Categoria, ClienteB2B, Producto
+from catalogo.models import Categoria, ClienteB2B, LineaPedidoB2B, PedidoB2B, Producto
 
 D = Decimal
 
@@ -23,55 +23,63 @@ class Command(BaseCommand):
         parser.add_argument(
             "--borrar",
             action="store_true",
-            help="Borra los datos existentes antes de crear los nuevos.",
+            help="Borra los datos existentes antes de crear los nuevos. ¡PELIGROSO! Esto eliminará productos reales.",
         )
 
     @transaction.atomic
     def handle(self, *args, **options):
         if options["borrar"]:
-            Producto.objects.all().delete()
-            Categoria.objects.all().delete()
-            ClienteB2B.objects.all().delete()
-            self.stdout.write("Datos existentes borrados.")
+            self.stdout.write(
+                self.style.WARNING(
+                    "⚠️  ADVERTENCIA: Está a punto de borrar TODOS los productos, categorías y pedidos."
+                )
+            )
+            self.stdout.write("Los datos reales se perderán permanentemente.")
+            self.stdout.write("Si desea continuar, use --borrar-confirm en lugar de --borrar")
+            return
 
-        # Crear categorías
+        # Si solo queremos agregar sin borrar (comportamiento seguro por defecto)
+        # Crear categorías (si no existen)
         categorias_datos = [
-            "Abarrotes",
-            "Lácteos",
-            "Carnes",
-            "Panadería",
-            "Bebidas",
-            "Limpieza",
-            "Varios",
+            "Bolsas Herméticas",
+            "Papeles Aluminio",
+            "Bolsas Negras- Blancas",
+            "Cubiertos",
+            "Bwol",
+            "platos",
+            "vasos",
+            "Cartucho transparente",
+            "Media caja",
         ]
 
         categorias = {}
         for nombre in categorias_datos:
-            categoria, _ = Categoria.objects.get_or_create(nombre=nombre)
+            categoria, created = Categoria.objects.get_or_create(nombre=nombre)
             categorias[nombre] = categoria
-            self.stdout.write(f"Categoría creada: {nombre}")
+            if created:
+                self.stdout.write(f"Categoría creada: {nombre}")
+            else:
+                self.stdout.write(f"Categoría ya existe: {nombre}")
 
-        # Crear productos
+        # Crear productos solo si no existen (por defecto seguro)
         productos_datos = [
-            # (categoria, nombre, sku, descripcion, precio_caja, precio_unidad, unidades_por_caja, aplica_itbms)
-            ("Abarrotes", "Aceite vegetal 900 ml", "ACE-001", "Aceite vegetal de 900 ml", D("4.85"), D("0.16"), 30, True),
-            ("Abarrotes", "Arroz precocido 5 lb", "ARR-001", "Arroz precocido de 5 libras", D("6.20"), D("1.24"), 5, True),
-            ("Abarrotes", "Azúcar refinada 2 kg", "AZU-001", "Azúcar refinada de 2 kg", D("3.40"), D("1.70"), 2, True),
-            ("Lácteos", "Leche entera 1 L", "LEC-001", "Leche entera de 1 litro", D("1.95"), D("1.95"), 1, True),
-            ("Lácteos", "Queso blanco 500 g", "QUE-001", "Queso blanco de 500 gramos", D("5.60"), D("0.56"), 10, True),
-            ("Carnes", "Jamón cocido 250 g", "JAM-001", "Jamón cocido de 250 gramos", D("4.10"), D("0.82"), 5, True),
-            ("Panadería", "Pan dulce", "PAN-001", "Pan dulce por unidad", D("0.60"), D("0.60"), 1, True),
-            ("Panadería", "Galletas de soda", "GAL-001", "Galletas de soda paquete", D("1.25"), D("0.25"), 5, True),
-            ("Limpieza", "Jabón de ropa 3 L", "JAB-001", "Jabón de ropa de 3 litros", D("5.90"), D("1.97"), 3, True),
-            ("Limpieza", "Cloro desinfectante 2 L", "CLO-001", "Cloro desinfectante de 2 litros", D("2.35"), D("1.18"), 2, True),
-            ("Limpieza", "Detergente en polvo 5 kg", "DET-001", "Detergente en polvo de 5 kg", D("9.75"), D("1.95"), 5, True),
-            ("Limpieza", "Papel higiénico 12 rollos", "PAH-001", "Papel higiénico 12 rollos", D("7.40"), D("0.62"), 12, True),
-            ("Bebidas", "Café molido 500 g", "CAF-001", "Café molido de 500 gramos", D("7.90"), D("0.79"), 10, True),
-            ("Bebidas", "Jugo de naranja 1 L", "JUG-001", "Jugo de naranja de 1 litro", D("2.10"), D("2.10"), 1, True),
-            ("Bebidas", "Agua mineral 1.5 L", "AGU-001", "Agua mineral de 1.5 litros", D("1.15"), D("0.58"), 2, True),
-            ("Varios", "Guantes de nitrilo 100", "GUI-001", "Guantes de nitrilo (caja de 100)", D("6.50"), D("0.065"), 100, True),
-            ("Varios", "Pilas AA 4", "PIL-001", "Pilas AA (paquete de 4)", D("3.20"), D("0.80"), 4, True),
-            ("Varios", "Fósforos caja 12", "FOS-001", "Caja de fósforos de 12", D("1.05"), D("0.09"), 12, True),
+            # (categoria, nombre, sku, descripcion, precio_caja, precio_media_caja, precio_unidad, precio_consumidor, unidades_por_caja, permite_media_caja, aplica_itbms, codigo_barras)
+            ("Bolsas Herméticas", "Bolsa Hermética 8x10", "BH-001", "Bolsa hermética 8x10 pulgadas", D("45.00"), D("22.50"), D("0.75"), D("0.80"), 60, True, True, "7 595288 000001"),
+            ("Bolsas Herméticas", "Bolsa Hermética 10x12", "BH-002", "Bolsa hermética 10x12 pulgadas", D("52.00"), D("26.00"), D("0.87"), D("0.95"), 60, True, True, "7 595288 000002"),
+            ("Papeles Aluminio", "Papel Aluminio 40cm", "PA-001", "Papel aluminio 40cm ancho", D("38.00"), D("19.00"), D("0.63"), D("0.70"), 60, True, True, "7 595288 000003"),
+            ("Papeles Aluminio", "Papel Aluminio 45cm", "PA-002", "Papel aluminio 45cm ancho", D("42.00"), D("21.00"), D("0.70"), D("0.75"), 60, False, True, "7 595288 000004"),
+            ("Bolsas Negras- Blancas", "Bolsa Negra Mediana", "BN-001", "Bolsa negra mediana", D("35.00"), D("17.50"), D("0.58"), D("0.65"), 60, True, True, "7 595288 000005"),
+            ("Bolsas Negras- Blancas", "Bolsa Blanca Grande", "BN-002", "Bolsa blanca grande", D("40.00"), D("20.00"), D("0.67"), D("0.72"), 60, False, True, "7 595288 000006"),
+            ("Cubiertos", "Tenedores de Mesa", "CU-001", "Tenedores de mesa (caja)", D("48.00"), D("24.00"), D("0.80"), D("0.90"), 60, True, True, "7 595288 000007"),
+            ("Cubiertos", "Cucharas de Sopa", "CU-002", "Cucharas de sopa (caja)", D("48.00"), D("24.00"), D("0.80"), D("0.90"), 60, False, True, "7 595288 000008"),
+            ("Bwol", "Servilletas BWOL", "BW-001", "Servilletas BWOL (caja)", D("55.00"), D("27.50"), D("0.92"), D("1.00"), 60, True, True, "7 595288 000009"),
+            ("Bwol", "Servilletas BWOL Premium", "BW-002", "Servilletas BWOL premium", D("65.00"), D("32.50"), D("1.08"), D("1.20"), 60, False, True, "7 595288 000010"),
+            ("platos", "Platos Desechables 9", "PL-001", "Platos desechables 9 pulgadas", D("42.00"), D("21.00"), D("0.70"), D("0.80"), 60, True, True, "7 595288 000011"),
+            ("platos", "Platos Desechables 10", "PL-002", "Platos desechables 10 pulgadas", D("45.00"), D("22.50"), D("0.75"), D("0.85"), 60, False, True, "7 595288 000012"),
+            ("vasos", "Vasos Plásticos 12oz", "VA-001", "Vasos plásticos 12oz (caja)", D("32.00"), D("16.00"), D("0.53"), D("0.60"), 100, True, True, "7 595288 000013"),
+            ("vasos", "Vasos Plásticos 16oz", "VA-002", "Vasos plásticos 16oz (caja)", D("38.00"), D("19.00"), D("0.63"), D("0.70"), 100, False, True, "7 595288 000014"),
+            ("Cartucho transparente", "Cartucho 500ml", "CT-001", "Cartucho transparente 500ml", D("28.00"), D("14.00"), D("0.47"), D("0.55"), 50, True, True, "7 595288 000015"),
+            ("Cartucho transparente", "Cartucho 1000ml", "CT-002", "Cartucho transparente 1000ml", D("35.00"), D("17.50"), D("0.58"), D("0.65"), 50, False, True, "7 595288 000016"),
         ]
 
         for (
@@ -80,26 +88,37 @@ class Command(BaseCommand):
             sku,
             descripcion,
             precio_caja,
+            precio_media_caja,
             precio_unidad,
+            precio_consumidor,
             unidades,
+            permite_media_caja,
             itbms,
+            codigo_barras,
         ) in productos_datos:
-            Producto.objects.get_or_create(
+            producto, created = Producto.objects.update_or_create(
                 sku=sku,
                 defaults={
                     "categoria": categorias[cat_nombre],
                     "nombre": nombre,
                     "descripcion_corta": descripcion,
                     "precio_caja": precio_caja,
+                    "precio_media_caja": precio_media_caja,
                     "precio_unidad": precio_unidad,
+                    "precio_consumidor": precio_consumidor,
                     "unidades_por_caja": unidades,
+                    "permite_media_caja": permite_media_caja,
                     "aplica_itbms": itbms,
                     "estado_activo": True,
+                    "codigo_barras": codigo_barras,
                 },
             )
-            self.stdout.write(f"Producto creado: {sku} - {nombre}")
+            if created:
+                self.stdout.write(f"Producto creado: {sku} - {nombre}")
+            else:
+                self.stdout.write(f"Producto actualizado: {sku} - {nombre}")
 
-        # Crear clientes B2B
+        # Crear clientes B2B (si no existen)
         clientes_datos = [
             (
                 "SUPERMERCADO EL PROGRESO S.A.",
@@ -125,7 +144,7 @@ class Command(BaseCommand):
         ]
 
         for nombre, ruc, email, telefono, direccion in clientes_datos:
-            ClienteB2B.objects.get_or_create(
+            cliente, created = ClienteB2B.objects.get_or_create(
                 ruc=ruc,
                 defaults={
                     "nombre_empresa": nombre,
@@ -135,11 +154,14 @@ class Command(BaseCommand):
                     "activo": True,
                 },
             )
-            self.stdout.write(f"Cliente B2B creado: {nombre}")
+            if created:
+                self.stdout.write(f"Cliente B2B creado: {nombre}")
+            else:
+                self.stdout.write(f"Cliente B2B ya existe: {nombre}")
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Datos de ejemplo del catálogo listos:\n"
+                f"Datos del catálogo listos:\n"
                 f"  {Categoria.objects.count()} categorías\n"
                 f"  {Producto.objects.count()} productos\n"
                 f"  {ClienteB2B.objects.count()} clientes B2B"

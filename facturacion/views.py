@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
-from catalogo.models import PedidoB2B
+from catalogo.models import LineaPedidoB2B, PedidoB2B
 from facturacion.forms import (
     ConfiguracionForm,
     FacturaForm,
@@ -452,20 +452,27 @@ def convertir_pedido_a_factura(request, pedido_id):
     for linea_pedido in lineas_pedido:
         producto = linea_pedido.producto
 
-        # Determinar cómo cobrar: si hay cajas, cobrar por caja
-        if linea_pedido.cantidad_cajas > CERO:
+        # Determinar cantidad y modo de cobro según tipo_empaque
+        if linea_pedido.tipo_empaque == LineaPedidoB2B.TIPO_CAJA:
             cobrar_por = servicio_totales.COBRAR_POR_CAJA
-            cantidad = linea_pedido.cantidad_cajas
-        else:
+            cantidad = linea_pedido.cantidad
+            precio_usar = producto.precio_caja
+        elif linea_pedido.tipo_empaque == LineaPedidoB2B.TIPO_MEDIA_CAJA:
+            cobrar_por = servicio_totales.COBRAR_POR_CAJA
+            cantidad = linea_pedido.cantidad
+            precio_usar = producto.precio_media_caja_efectivo
+        else:  # unidad
             cobrar_por = servicio_totales.COBRAR_POR_UNIDAD
-            cantidad = linea_pedido.cantidad_unidades
+            cantidad = linea_pedido.cantidad
+            precio_usar = producto.precio_unidad
 
         lineas.append({
             "descripcion": producto.nombre,
             "codigo_barras": producto.sku,
             "categoria": producto.categoria.nombre if producto.categoria else "",
             "cantidad": cantidad,
-            "precio_unitario": producto.precio_caja,
+            "precio_unitario": precio_usar,
+            "precio_unidad": producto.precio_unidad,
             "descuento_pct": CERO,
             "gravada": producto.aplica_itbms,
             "unidades_por_caja": producto.unidades_por_caja,

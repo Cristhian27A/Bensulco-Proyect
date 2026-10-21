@@ -18,8 +18,15 @@
 (function () {
     "use strict";
 
+    console.log("Autocompletado: Script formulario.js cargado");
+
     var cuerpo = document.getElementById("cuerpo-productos");
-    if (!cuerpo) { return; }
+    if (!cuerpo) { 
+        console.log("Autocompletado: No se encontró cuerpo-productos, saliendo");
+        return; 
+    }
+    
+    console.log("Autocompletado: cuerpo-productos encontrado");
 
     var botonAgregar = document.getElementById("agregar-fila");
     var plantilla = document.getElementById("plantilla-fila");
@@ -199,6 +206,237 @@
 
     /* ---------- filas dinámicas ---------- */
 
+    /* ---------- autocompletado de productos ---------- */
+
+    var timeoutBusqueda = null;
+    var menuSugerencias = null;
+
+    function crearMenuSugerencias() {
+        if (menuSugerencias) return menuSugerencias;
+        
+        menuSugerencias = document.createElement("div");
+        menuSugerencias.className = "menu-sugerencias";
+        menuSugerencias.style.display = "none";
+        menuSugerencias.style.position = "absolute";
+        menuSugerencias.style.zIndex = "9999";
+        menuSugerencias.style.background = "white";
+        menuSugerencias.style.border = "1px solid #ddd";
+        menuSugerencias.style.borderRadius = "4px";
+        menuSugerencias.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+        menuSugerencias.style.maxWidth = "400px";
+        menuSugerencias.style.maxHeight = "300px";
+        menuSugerencias.style.overflowY = "auto";
+        document.body.appendChild(menuSugerencias);
+        
+        // Cerrar al hacer clic fuera
+        document.addEventListener("click", function(evento) {
+            if (!menuSugerencias.contains(evento.target)) {
+                menuSugerencias.style.display = "none";
+            }
+        });
+        
+        return menuSugerencias;
+    }
+
+    function buscarProductos(query, callback) {
+        console.log('Autocompletado: Buscando productos con query:', query);
+        
+        if (timeoutBusqueda) {
+            clearTimeout(timeoutBusqueda);
+        }
+        
+        if (query.length < 2) {
+            console.log('Autocompletado: Query muy corto, ocultando menú');
+            callback([]);
+            if (menuSugerencias) {
+                menuSugerencias.style.display = "none";
+            }
+            return;
+        }
+        
+        console.log('Autocompletado: Haciendo fetch a /catalogo/api/buscar-productos/?q=' + query);
+        timeoutBusqueda = setTimeout(function() {
+            fetch("/catalogo/api/buscar-productos/?q=" + encodeURIComponent(query))
+                .then(function(response) {
+                    console.log('Autocompletado: Response recibida:', response.status);
+                    return response.json();
+                })
+                .then(function(data) {
+                    console.log('Autocompletado: Data recibida:', data);
+                    callback(data.results);
+                })
+                .catch(function(error) {
+                    console.error("Error al buscar productos:", error);
+                    callback([]);
+                });
+        }, 300);
+    }
+
+    function mostrarSugerencias(productos, input) {
+        console.log('Autocompletado: Mostrando', productos.length, 'sugerencias para input:', input);
+        var menu = crearMenuSugerencias();
+        menu.innerHTML = "";
+        
+        if (productos.length === 0) {
+            console.log('Autocompletado: No hay resultados, ocultando menú');
+            menu.style.display = "none";
+            return;
+        }
+        
+        console.log('Autocompletado: Creando items de sugerencias');
+        productos.forEach(function(producto) {
+            var item = document.createElement("div");
+            item.className = "sugerencia-item";
+            item.style.padding = "10px 15px";
+            item.style.cursor = "pointer";
+            item.style.borderBottom = "1px solid #f0f0f0";
+            item.style.transition = "background 0.2s";
+            
+            item.innerHTML = "<strong>" + producto.nombre + "</strong><br>" +
+                           "<small>SKU: " + producto.sku + 
+                           (producto.codigo_barras ? " | Código: " + producto.codigo_barras : "") +
+                           " | $" + producto.precio_caja + " (caja) | $" + producto.precio_unidad + " (und)" +
+                           "</small>";
+            
+            item.addEventListener("mouseenter", function() {
+                item.style.background = "#f8f9fa";
+            });
+            
+            item.addEventListener("mouseleave", function() {
+                item.style.background = "white";
+            });
+            
+            item.addEventListener("click", function() {
+                console.log('Autocompletado: Producto seleccionado:', producto.nombre);
+                seleccionarProducto(producto, input);
+                menu.style.display = "none";
+            });
+            
+            menu.appendChild(item);
+        });
+        
+        // Posicionar el menú cerca del input
+        var rect = input.getBoundingClientRect();
+        console.log('Autocompletado: Posición input - top:', rect.bottom, 'left:', rect.left, 'width:', rect.width);
+        menu.style.top = (rect.bottom + window.scrollY + 2) + "px";
+        menu.style.left = rect.left + "px";
+        menu.style.width = Math.max(rect.width, 400) + "px";
+        menu.style.display = "block";
+        console.log('Autocompletado: Menú mostrado');
+    }
+
+    function seleccionarProducto(producto, input) {
+        console.log('Autocompletado: seleccionarProducto llamado con producto:', producto.nombre);
+        var fila = input.closest(".fila-producto");
+        console.log('Autocompletado: Fila encontrada:', !!fila);
+        
+        if (!fila) {
+            console.error('Autocompletado: No se encontró la fila del producto');
+            return;
+        }
+        
+        // Llenar nombre/descripción
+        var descripcion = fila.querySelector(".campo-producto");
+        console.log('Autocompletado: Campo descripcion encontrado:', !!descripcion);
+        if (descripcion) {
+            descripcion.value = producto.nombre;
+            console.log('Autocompletado: Descripción llenada:', producto.nombre);
+        }
+        
+        // Llenar código de barras
+        var codigoBarras = fila.querySelector(".campo-codigo-barras");
+        console.log('Autocompletado: Campo codigo_barras encontrado:', !!codigoBarras);
+        if (codigoBarras) {
+            codigoBarras.value = producto.codigo_barras;
+            console.log('Autocompletado: Código de barras llenado:', producto.codigo_barras);
+        }
+        
+        // Llenar unidades por caja
+        var unidadesCaja = fila.querySelector(".campo-unidades-caja");
+        if (!unidadesCaja) {
+            // Fallback: buscar input con name que contiene unidades_por_caja
+            var inputs = fila.querySelectorAll("input[type='number']");
+            inputs.forEach(function(inp) {
+                if (inp.name && inp.name.includes("unidades_por_caja")) {
+                    unidadesCaja = inp;
+                }
+            });
+        }
+        console.log('Autocompletado: Campo unidades_caja encontrado:', !!unidadesCaja);
+        if (unidadesCaja) {
+            unidadesCaja.value = producto.unidades_por_caja;
+            console.log('Autocompletado: Unidades por caja llenadas:', producto.unidades_por_caja);
+        }
+        
+        // Llenar precio caja
+        var precioCaja = fila.querySelector(".campo-precio-caja");
+        if (!precioCaja) {
+            // Fallback: buscar input con name que contiene precio_unitario
+            var inputs = fila.querySelectorAll("input[type='number']");
+            inputs.forEach(function(inp) {
+                if (inp.name && inp.name.includes("precio_unitario")) {
+                    precioCaja = inp;
+                }
+            });
+        }
+        console.log('Autocompletado: Campo precio_caja encontrado:', !!precioCaja);
+        if (precioCaja) {
+            precioCaja.value = producto.precio_caja;
+            console.log('Autocompletado: Precio caja llenado:', producto.precio_caja);
+        }
+        
+        // Llenar precio unidad
+        var precioUnidad = fila.querySelector(".campo-precio-unidad");
+        if (!precioUnidad) {
+            // Fallback: buscar input con name que contiene precio_unidad
+            var inputs = fila.querySelectorAll("input[type='number']");
+            inputs.forEach(function(inp) {
+                if (inp.name && inp.name.includes("precio_unidad")) {
+                    precioUnidad = inp;
+                }
+            });
+        }
+        console.log('Autocompletado: Campo precio_unidad encontrado:', !!precioUnidad);
+        if (precioUnidad) {
+            precioUnidad.value = producto.precio_unidad;
+            console.log('Autocompletado: Precio unidad llenado:', producto.precio_unidad);
+        }
+        
+        // Recalcular totales
+        console.log('Autocompletado: Recalculando totales');
+        calcular();
+    }
+
+    function configurarAutocompletado(fila) {
+        console.log('Autocompletado: Configurando fila', fila);
+        
+        var descripcion = fila.querySelector(".campo-producto");
+        var codigoBarras = fila.querySelector(".campo-codigo-barras");
+        
+        console.log('Autocompletado: Campo producto encontrado:', !!descripcion);
+        console.log('Autocompletado: Campo codigo_barras encontrado:', !!codigoBarras);
+        
+        if (descripcion) {
+            descripcion.addEventListener("input", function() {
+                var query = this.value.trim();
+                console.log('Autocompletado: Input en producto, query:', query);
+                buscarProductos(query, function(productos) {
+                    mostrarSugerencias(productos, descripcion);
+                });
+            });
+        }
+        
+        if (codigoBarras) {
+            codigoBarras.addEventListener("input", function() {
+                var query = this.value.trim();
+                console.log('Autocompletado: Input en código_barras, query:', query);
+                buscarProductos(query, function(productos) {
+                    mostrarSugerencias(productos, codigoBarras);
+                });
+            });
+        }
+    }
+
     function agregarFila() {
         var indice = parseInt(totalFormulario.value, 10) || 0;
         var html = plantilla.innerHTML.split("__PREFIX__").join(PREFIJO + "-" + indice);
@@ -235,6 +473,9 @@
             cobrarPor.style.pointerEvents = "auto";
         }
 
+        // Configurar autocompletado en la nueva fila
+        configurarAutocompletado(fila);
+
         var descripcion = fila.querySelector(".campo-producto");
         if (descripcion) { descripcion.focus(); }
         calcular();
@@ -252,6 +493,12 @@
     Array.prototype.forEach.call(
         cuerpo.querySelectorAll(".fila-producto .js-quitar"),
         function (boton) { boton.addEventListener("click", quitarFila); }
+    );
+
+    // Configurar autocompletado en filas existentes
+    Array.prototype.forEach.call(
+        cuerpo.querySelectorAll(".fila-producto"),
+        function (fila) { configurarAutocompletado(fila); }
     );
 
     if (botonAgregar) {

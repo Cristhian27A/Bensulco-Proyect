@@ -17,7 +17,7 @@ class LineaPedidoB2BInline(admin.TabularInline):
     model = LineaPedidoB2B
     extra = 0
     readonly_fields = ["subtotal"]
-    fields = ["producto", "cantidad_cajas", "cantidad_unidades", "subtotal", "orden"]
+    fields = ["producto", "tipo_empaque", "cantidad", "subtotal", "orden"]
 
 
 @admin.register(PedidoB2B)
@@ -55,15 +55,36 @@ class ProductoAdmin(admin.ModelAdmin):
         "nombre",
         "categoria",
         "precio_caja",
+        "precio_media_caja",
         "precio_unidad",
+        "precio_consumidor",
         "unidades_por_caja",
+        "permite_media_caja",
         "estado_activo",
         "vista_previa_imagen",
     ]
-    list_filter = ["categoria", "estado_activo", "aplica_itbms"]
+    list_filter = ["categoria", "estado_activo", "aplica_itbms", "permite_media_caja"]
     search_fields = ["nombre", "sku", "descripcion_corta"]
     readonly_fields = ["fecha_creacion", "fecha_actualizacion", "vista_previa_imagen"]
     list_editable = ["estado_activo"]
+    fieldsets = (
+        (None, {
+            "fields": ("categoria", "nombre", "sku", "codigo_barras", "descripcion_corta", "imagen")
+        }),
+        ("Precios", {
+            "fields": ("precio_caja", "precio_media_caja", "precio_unidad", "precio_consumidor", "unidades_por_caja")
+        }),
+        ("Configuración", {
+            "fields": ("aplica_itbms", "permite_media_caja", "estado_activo")
+        }),
+        ("Fechas", {
+            "fields": ("fecha_creacion", "fecha_actualizacion", "vista_previa_imagen"),
+            "classes": ("collapse",)
+        }),
+    )
+
+    class Media:
+        js = ("catalogo/js/admin_producto.js",)
 
     def vista_previa_imagen(self, obj):
         if obj.imagen:

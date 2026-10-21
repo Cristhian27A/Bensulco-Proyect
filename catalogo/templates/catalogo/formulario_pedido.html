@@ -12,8 +12,9 @@
             <thead>
                 <tr>
                     <th>Producto</th>
-                    <th>Cajas</th>
-                    <th>Unidades</th>
+                    <th>Tipo</th>
+                    <th>Cantidad</th>
+                    <th>Unidades Eq.</th>
                     <th>Subtotal</th>
                 </tr>
             </thead>
@@ -24,15 +25,16 @@
                         <strong>{{ item.nombre }}</strong><br>
                         <small>{{ item.sku }}</small>
                     </td>
-                    <td>{{ item.cantidad_cajas }}</td>
-                    <td>{{ item.cantidad_unidades }}</td>
+                    <td>{{ item.tipo_empaque|title }}</td>
+                    <td>{{ item.cantidad }}</td>
+                    <td>{{ item.unidades_equivalentes }}</td>
                     <td>${{ item.subtotal|floatformat:2 }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="3"><strong>Total:</strong></td>
+                    <td colspan="4"><strong>Total:</strong></td>
                     <td><strong>${{ total|floatformat:2 }}</strong></td>
                 </tr>
             </tfoot>

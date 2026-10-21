@@ -34,8 +34,10 @@ class PruebaPedidosPendientes(TestCase):
             sku="TEST-001",
             descripcion_corta="Descripción",
             precio_caja=D("10.00"),
+            precio_media_caja=D("5.00"),
             precio_unidad=D("1.00"),
             unidades_por_caja=10,
+            permite_media_caja=True,
             aplica_itbms=True,
             estado_activo=True,
         )
@@ -56,8 +58,8 @@ class PruebaPedidosPendientes(TestCase):
         LineaPedidoB2B.objects.create(
             pedido=pedido,
             producto=self.producto,
-            cantidad_cajas=D("2"),
-            cantidad_unidades=D("0"),
+            tipo_empaque=LineaPedidoB2B.TIPO_CAJA,
+            cantidad=D("2"),
             subtotal=D("20.00"),
             orden=1,
         )
@@ -88,8 +90,10 @@ class PruebaDetallePedido(TestCase):
             sku="TEST-001",
             descripcion_corta="Descripción",
             precio_caja=D("10.00"),
+            precio_media_caja=D("5.00"),
             precio_unidad=D("1.00"),
             unidades_por_caja=10,
+            permite_media_caja=True,
             aplica_itbms=True,
             estado_activo=True,
         )
@@ -102,8 +106,8 @@ class PruebaDetallePedido(TestCase):
         cls.linea = LineaPedidoB2B.objects.create(
             pedido=cls.pedido,
             producto=cls.producto,
-            cantidad_cajas=D("2"),
-            cantidad_unidades=D("0"),
+            tipo_empaque=LineaPedidoB2B.TIPO_CAJA,
+            cantidad=D("2"),
             subtotal=D("20.00"),
             orden=1,
         )
@@ -143,8 +147,10 @@ class PruebaConversionPedidoAFactura(TestCase):
             sku="TEST-001",
             descripcion_corta="Descripción",
             precio_caja=D("10.00"),
+            precio_media_caja=D("5.00"),
             precio_unidad=D("1.00"),
             unidades_por_caja=10,
+            permite_media_caja=True,
             aplica_itbms=True,
             estado_activo=True,
         )
@@ -157,8 +163,8 @@ class PruebaConversionPedidoAFactura(TestCase):
         cls.linea = LineaPedidoB2B.objects.create(
             pedido=cls.pedido,
             producto=cls.producto,
-            cantidad_cajas=D("2"),
-            cantidad_unidades=D("0"),
+            tipo_empaque=LineaPedidoB2B.TIPO_CAJA,
+            cantidad=D("2"),
             subtotal=D("20.00"),
             orden=1,
         )
